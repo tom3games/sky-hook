@@ -2,7 +2,7 @@
 // 見た目（view.js）も当たり（physics.js）もこの一覧から作る。
 // 区間ごとの「なぜワイヤーでないとダメか」は ideas/sky-hook.md の表。
 
-export const TOWER_R = 30          // 遊ぶ面の半径（m）。塔の壁はこれより内側
+export const TOWER_R = 40          // 遊ぶ面の半径（m）。塔の壁はこれより内側
 
 export function makeCourse() {
   const C = { solids: [], anchors: [], hazards: [], gusts: [], flags: [], floods: [], sections: [], deco: [] }
@@ -54,10 +54,10 @@ export function makeCourse() {
   // 主役: ひびの入った台座。掛けて 1.6 秒で落ちる。こいでいる暇はない。勢いを持ったまま掛けて振り抜く
   sec('crumble', 40, 92)
   R(6, 5)                                   // 13
-  rl(4, 12, -8)                             // 受けの棚（初めての崩れは下に棚）
   R(7, 5, 'crumble')                        // 14: 初めて見せる
   R(7, 5); const p15 = P()                  // 15
   R(6, 5.5, 'crumble'); R(7, 5, 'crumble')  // 16, 17: 近道（崩れる点を2つ続けて）
+  R(6, 4); R(-6, 4.5)                       // 18, 19: 近道の出口（勢いの向きへ抜けてから戻る）
   go(...p15)
   R(-7, 5); R(-6, 5); R(7, 4.5); R(6, 4)    // 18-21: 遠回り（ふつうの輪だけ）
   R(7, -2.5)                                // 22: 合流

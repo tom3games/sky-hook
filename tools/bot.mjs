@@ -9,6 +9,7 @@ import { buildWorld, newState, step, cloneState, canGrab, anchorPos, PH, grabbab
 import { exploreAll, expandHang, expandStand, robustWindows, HUMAN } from '../js/explore.js'
 
 const mode = process.argv[2] || 'plan'
+const DEBUG = process.argv.includes('-d')
 const seed = +(process.argv[3] || 1)
 const fi = process.argv.indexOf('--flag'); const FL = fi > 0 ? +process.argv[fi + 1] : -1
 const W = buildWorld(makeCourse())
@@ -45,7 +46,7 @@ const log = []
 function run(inp, n) { for (let k = 0; k < n; k++) { step(W, S, inp); for (const e of S.ev) if (['fall', 'drown', 'hit', 'crumble', 'flag', 'top'].includes(e.t)) log.push((S.t).toFixed(1) + ' ' + e.t + (e.i != null ? e.i : '')); S.ev.length = 0; if (S.done) return } }
 const recent = []
 const score = j => {
-  const base = mode === 'plan' ? (distTop.has(j) ? -distTop.get(j) : -1e6) + W.anchors[j].y * 0.01 : W.anchors[j].y
+  const base = mode === 'plan' ? (distTop.has(j) ? -distTop.get(j) : -1e6) + W.anchors[j].y * 0.01 - (W.anchors[j].kind === 'crumble' ? 0.6 : 0) : W.anchors[j].y
   // 最近いた点には戻りにくく（同じ所を回り続けない）
   const k = recent.lastIndexOf(j)
   return base - (k >= 0 ? (8 - (recent.length - 1 - k)) * 3 : 0) + rnd() * 0.5
@@ -93,6 +94,7 @@ while (!S.done && S.frame < LIMIT) {
       }
     }
     for (const o of opts) if (!best || o.sc > best.sc) best = o
+    if (DEBUG) console.log('hang', S.t.toFixed(1), 'at', from, 'opts', opts.map(o => o.j + ':' + o.sc.toFixed(1)).join(' '), 'best', best && best.j, 'top', !!topLand)
     let rel, target
     if (topLand && (mode !== 'plan' || !best || true)) { rel = topLand.rel; target = -1 }
     else if (best && (mode !== 'plan' || distTop.has(best.j) || true)) {
@@ -125,8 +127,19 @@ while (!S.done && S.frame < LIMIT) {
     // 立っている（出発・旗の足場・棚）: 歩いて届く点に掛け、崖から振り出す
     const ex = expandStand(W, S)
     let best = null
-    for (const [j, list] of ex) { const sc = score(j); if (!best || sc > best.sc) best = { j, sc, e: list[0] } }
-    if (!best) { run({ hook: false, pump: 0 }, 30); continue }
+    for (const [j, list] of ex) {
+      let sc = score(j)
+      if (mode === 'plan' && list[0].S.rope) {
+        // 掛けた後に、さらに頂上へ近づけるか（一手先）
+        const ex2 = expandHang(W, list[0].S)
+        let nb = -1e9
+        for (const [kk, l2] of ex2.grabs) { const k = Math.floor(kk); if (k === j || !robustWindows(l2, HUMAN.tol, HUMAN.relStep).length) continue; nb = Math.max(nb, distTop.has(k) ? -distTop.get(k) : -1e6) }
+        sc = Math.min(sc, nb + 1) + sc * 1e-3
+      }
+      if (!best || sc > best.sc) best = { j, sc, e: list[0] }
+    }
+    if (DEBUG) console.log('stand', S.t.toFixed(1), S.p.x.toFixed(1), S.p.y.toFixed(1), 'opts', [...ex.keys()].join(','), 'best', best && best.j, best && best.sc)
+    if (!best) { run({ hook: false, pump: rnd() < 0.5 ? -1 : 1 }, 90); continue }   // どこにも届かない棚: 歩いて降りる
     run({ hook: false, pump: best.e.walk }, best.e.f)
     run({ hook: true, target: best.j, pump: best.e.walk }, 2)
     if (!S.rope) run({ hook: false, pump: 0 }, 10)

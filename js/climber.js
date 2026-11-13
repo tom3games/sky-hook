@@ -1,7 +1,7 @@
 // 登る人。Quaternius の人物（CC0）を骨の IK で手続きに動かす（アニメのクリップは使わない）
 import * as THREE from 'three'
 import { GLTFLoader } from '../vendor/jsm/loaders/GLTFLoader.js'
-import { to3, frame } from './view.js'
+import { to3, frame } from './view.js?v=2'
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z)
 const _a = V(), _b = V(), _c = V()
@@ -35,7 +35,7 @@ export class Climber {
     this.hand = V()
     this.walkPh = 0
     // 首の赤い布（速さと逆へなびく。遠くでも人の向きと速さが読める）
-    this.scarfN = 9
+    this.scarfN = 12
     this.scarfP = Array.from({ length: this.scarfN }, () => V())
     this.scarfO = this.scarfP.map(() => V())
     const sg = new THREE.BufferGeometry()
@@ -56,11 +56,11 @@ export class Climber {
     m.traverse(o => {
       if (o.isMesh) {
         o.castShadow = true; o.frustumCulled = false
-        if (o.material) { o.material = o.material.clone(); o.material.roughness = Math.max(0.6, o.material.roughness ?? 0.7); o.material.metalness = 0.05 }
+        if (o.material) { o.material = o.material.clone(); o.material.roughness = Math.max(0.6, o.material.roughness ?? 0.7); o.material.metalness = 0.05; if (o.material.color) o.material.color.lerp(new THREE.Color(0xb88a5a), 0.45); o.material.emissive = new THREE.Color(0x2a1a10) }
       }
     })
     const box = new THREE.Box3().setFromObject(m), h = box.max.y - box.min.y
-    m.scale.setScalar(1.85 / h)
+    m.scale.setScalar(2.0 / h)
     this.body.add(m)
     const bone = n => m.getObjectByName(n) || m.getObjectByName(n.replace(/[.]/g, ''))
     this.B = {}
@@ -91,7 +91,7 @@ export class Climber {
     for (let i = 0; i < n; i++) {
       const dir = (i < n - 1 ? P[i + 1].clone().sub(P[i]) : P[i].clone().sub(P[i - 1])).normalize()
       const toCam = camPos.clone().sub(P[i]).normalize()
-      const side = new THREE.Vector3().crossVectors(dir, toCam).normalize().multiplyScalar(0.09 * (1 - i / n * 0.4))
+      const side = new THREE.Vector3().crossVectors(dir, toCam).normalize().multiplyScalar(0.14 * (1 - i / n * 0.3))
       pos.setXYZ(i * 2, P[i].x + side.x, P[i].y + side.y, P[i].z + side.z)
       pos.setXYZ(i * 2 + 1, P[i].x - side.x, P[i].y - side.y, P[i].z - side.z)
     }

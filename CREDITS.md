@@ -2,7 +2,6 @@
 
 - assets/models/Rider.glb: Quaternius「Ultimate Modular Men」Swat（アニメを外した）/ CC0 / https://quaternius.com
 - assets/tex/large_sandstone_blocks_01・old_sandstone_02・mossy_sandstone・cliff_side・medieval_wood・green_metal_rust（色・法線・ラフネス）: Poly Haven / CC0 / https://polyhaven.com/textures
-- assets/sky_1k.hdr: Poly Haven「Kloofendal 48d Partly Cloudy (Pure Sky)」/ CC0 / https://polyhaven.com/hdris
 - assets/pano.webp（雲海と遠くの塔の背景）・assets/vines.webp（ツタ）: このゲームのために描いたオリジナル
 - snd/wind_loop.wav: Howling wind / Tvabutzku1234 / CC0（Wikimedia Commons。14秒の継ぎ目なしループ）
 - snd/wind.mp3: Wind / IgnasD / CC0

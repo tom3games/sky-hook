@@ -23,7 +23,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .ld-bar i { display: block; height: 100%; width: 0; background: var(--deep); transition: width .2s; }
 
 /* タイトル */
-#title { flex-direction: column; justify-content: space-between; padding: max(28px, env(safe-area-inset-top)) 22px calc(var(--bot) + 18px); background: linear-gradient(90deg, rgba(40, 52, 78, .55), rgba(40, 52, 78, 0) 62%); z-index: 10; }
+#title { flex-direction: column; justify-content: space-between; padding: max(28px, env(safe-area-inset-top)) 22px calc(var(--bot) + 18px); background: linear-gradient(90deg, rgba(40, 52, 78, .7), rgba(40, 52, 78, .35) 55%, rgba(40, 52, 78, 0) 80%); z-index: 10; }
 .t-left { margin-top: 6vh; max-width: 560px; }
 .t-kicker { font-family: 'Shippori Mincho B1', serif; font-weight: 600; letter-spacing: .14em; margin: 0 0 6px; text-shadow: 0 1px 8px rgba(0, 0, 0, .35); }
 .logo { margin: 0; line-height: 1; }
@@ -35,7 +35,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .go small { font-family: 'Zen Kaku Gothic New'; font-weight: 500; font-size: 12px; letter-spacing: .04em; opacity: .75; }
 .go2 { color: #fff6e6; padding: 8px 2px; font-family: 'Shippori Mincho B1', serif; font-weight: 800; font-size: 17px; letter-spacing: .12em; border-bottom: 1px solid rgba(255, 246, 230, .5); }
 .t-foot { display: flex; gap: 18px; flex-wrap: wrap; }
-.link { font-size: 13px; color: #fff6e6; opacity: .85; padding: 8px 0; letter-spacing: .06em; }
+.link { font-size: 15px; color: #fff6e6; opacity: .85; padding: 8px 0; letter-spacing: .06em; }
 
 /* 説明 */
 #how, #pause, #result { align-items: center; justify-content: center; background: rgba(32, 40, 58, .55); z-index: 20; padding: 16px; }
@@ -55,7 +55,7 @@ body.touch .keys td:nth-child(2), body:not(.touch) .keys td:nth-child(3) { displ
 
 /* 遊び中 */
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
-.watch { position: absolute; left: 14px; top: max(12px, env(safe-area-inset-top)); display: flex; gap: 14px; align-items: baseline; font-variant-numeric: tabular-nums; text-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
+.watch { position: absolute; left: 10px; top: max(10px, env(safe-area-inset-top)); display: flex; gap: 14px; align-items: baseline; background: rgba(42, 31, 22, .42); padding: 5px 12px 6px; border-left: 3px solid var(--sand); font-variant-numeric: tabular-nums; text-shadow: 0 1px 4px rgba(0, 0, 0, .45); }
 .watch #tm { font-family: 'Cinzel', serif; font-weight: 700; font-size: 20px; }
 .falls { font-size: 12px; opacity: .9; } .falls i { font-style: normal; margin-right: 4px; } .falls b { font-size: 15px; }
 .alt { position: absolute; right: 10px; top: 64px; bottom: calc(var(--bot) + 140px); width: 30px; }
@@ -64,7 +64,7 @@ body.touch .keys td:nth-child(2), body:not(.touch) .keys td:nth-child(3) { displ
 .alt-track .fl.on { background: #fff; height: 3px; }
 .alt-me { position: absolute; right: -6px; width: 15px; height: 15px; margin-bottom: -7px; border-radius: 50%; border: 2px solid #fff6e6; background: var(--deep); }
 .alt-me span { position: absolute; right: 20px; top: -3px; font-size: 12px; font-weight: 700; white-space: nowrap; text-shadow: 0 1px 4px rgba(0, 0, 0, .6); }
-#toast { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); font-family: 'Shippori Mincho B1', serif; font-weight: 800; font-size: 22px; letter-spacing: .18em; color: #fff6e6; text-shadow: 0 2px 12px rgba(0, 0, 0, .5); opacity: 0; transition: opacity .3s; white-space: nowrap; }
+#toast { position: absolute; left: 50%; top: 11%; transform: translateX(-50%); font-family: 'Shippori Mincho B1', serif; font-weight: 800; font-size: 22px; letter-spacing: .18em; color: #fff6e6; text-shadow: 0 2px 12px rgba(0, 0, 0, .5); opacity: 0; transition: opacity .3s; white-space: nowrap; }
 #toast.on { opacity: 1; }
 #tut { position: absolute; left: 50%; bottom: calc(var(--bot) + 120px); transform: translateX(-50%); font-size: 15px; font-weight: 700; color: var(--ink); background: rgba(239, 226, 198, .92); padding: 8px 14px; opacity: 0; transition: opacity .35s; white-space: nowrap; max-width: 92vw; overflow: hidden; text-overflow: ellipsis; }
 #tut.on { opacity: 1; }
@@ -73,7 +73,11 @@ body.touch .keys td:nth-child(2), body:not(.touch) .keys td:nth-child(3) { displ
 .ic svg { width: 22px; height: 22px; }
 
 /* スマホのこぐボタン */
-#touch { position: fixed; left: 12px; bottom: calc(var(--bot) + 16px); display: flex; gap: 12px; z-index: 6; }
+#touch { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
+#touch .pump { position: absolute; bottom: calc(var(--bot) + 16px); pointer-events: auto; }
+#touch .pump[data-k="-1"] { left: 12px; } #touch .pump[data-k="1"] { left: 108px; }
+#hookBtn { position: absolute; right: 14px; bottom: calc(var(--bot) + 18px); width: 104px; height: 104px; border-radius: 50%; pointer-events: auto; display: grid; place-items: center; align-content: center; gap: 0; color: var(--ink); background: rgba(233, 212, 155, .9); border: 3px solid #fff6e6; box-shadow: 0 4px 0 rgba(87, 57, 30, .55); font-weight: 700; font-size: 13px; }
+#hookBtn svg { width: 42px; height: 42px; } #hookBtn.on { background: #dda675; transform: translateY(3px); box-shadow: 0 1px 0 rgba(87, 57, 30, .55); }
 .pump { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; color: #fff6e6; background: rgba(42, 31, 22, .38); border: 2px solid rgba(255, 246, 230, .55); }
 .pump svg { width: 40px; height: 40px; }
 .pump.on { background: rgba(221, 166, 117, .85); color: var(--ink); }
@@ -97,3 +101,14 @@ body.touch .keys td:nth-child(2), body:not(.touch) .keys td:nth-child(3) { displ
   .pump { width: 72px; height: 72px; }
   #tut { bottom: calc(var(--bot) + 96px); }
 }
+
+.alt-top { position: absolute; right: -4px; top: -16px; font-size: 11px; font-weight: 700; color: #fff6e6; text-shadow: 0 1px 4px rgba(0,0,0,.6); white-space: nowrap; }
+#finger { position: fixed; width: 54px; height: 54px; margin: -8px 0 0 -8px; pointer-events: none; z-index: 7; opacity: 0; transition: opacity .3s; }
+#finger.on { opacity: 1; animation: tap 1.2s ease-in-out infinite; }
+@keyframes tap { 0%, 100% { transform: translate(0, 0) } 50% { transform: translate(-4px, -6px) } }
+
+#reticle { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; border: 2px solid rgba(255, 246, 230, .85); box-shadow: 0 0 0 1px rgba(42, 31, 22, .5), inset 0 0 0 1px rgba(42, 31, 22, .5); transition: transform .12s, border-color .12s; }
+#reticle i { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: #fff6e6; box-shadow: 0 0 0 1px rgba(42, 31, 22, .6); }
+#reticle.hot { border-color: #ffd36a; transform: scale(1.25); }
+#reticle.apex { border-color: #fff; transform: scale(1.5); }
+@media (max-height: 520px) { #hookBtn { width: 84px; height: 84px; } #touch .pump[data-k="1"] { left: 94px; } }

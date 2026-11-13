@@ -1,12 +1,12 @@
 // 見た目。course の一覧（当たりと同じデータ）から塔・棚・掛け点・仕掛けを作る。
 // 遊ぶ面は半径 TOWER_R の円柱。2次元の (x, y, z) は「周に沿った距離・高さ・外向きのずれ」
 import * as THREE from 'three'
-import { TOWER_R } from './course.js'
-import { anchorPos, hazardGeo, gustAt, floodLevel, bellK, solidAt, PH } from './physics.js'
+import { TOWER_R } from './course.js?v=2'
+import { anchorPos, hazardGeo, gustAt, floodLevel, bellK, solidAt, PH } from './physics.js?v=2'
 
 export const PAL = { sand: 0xdda675, sandM: 0xb0825d, shadow: 0x7e5c41, deep: 0x57391e, haze: 0x909eba, cloud: 0xd0cfd8, sky: 0x557198 }
 const R = TOWER_R
-export const WALL_R = R - 1.7      // 塔の壁の面
+export const WALL_R = R - 2.8      // 塔の壁の面（遊ぶ面との間 2.8m に飾りの凹凸を置く）
 
 // 2次元 → 3次元
 export function to3(x, y, z = 0, out = new THREE.Vector3()) {
@@ -92,6 +92,8 @@ export class View {
     this.buildFloods()
     this.buildRope()
     this.buildMarks()
+    this.buildDust()
+    this.buildLandmarks()
   }
 
   buildTower() {
@@ -118,9 +120,10 @@ export class View {
     const band = new THREE.LatheGeometry(prof, 256)
     const uvb = band.attributes.uv; for (let i = 0; i < uvb.count; i++) uvb.setX(i, uvb.getX(i) * 2 * Math.PI * WALL_R / 4)
     const rnd = mulberry(7)
-    const arches = [], slits = [], pil = []
+    const arches = [], slits = [], pil = [], bandYs = []
     for (let y = -36, k = 0; y < yTop - 20; k++) {
       const tier = 10 + Math.floor(rnd() * 3) * 4          // 10〜18m の段
+      bandYs.push(y)
       const b = new THREE.Mesh(band, MAT.trim); b.position.y = y; b.receiveShadow = true; b.castShadow = true; this.root.add(b)
       const kind = k % 4 === 0 ? 'arcade' : ['arcade', 'slits', 'plain', 'pilaster'][Math.floor(rnd() * 4)]
       const n = kind === 'arcade' ? 34 + Math.floor(rnd() * 3) * 6 : 18 + Math.floor(rnd() * 3) * 4
@@ -145,6 +148,46 @@ export class View {
     put(ag.hole, MAT.recess, arches, (v, k) => v.set(k, k, 1))
     put(ag.hole, MAT.recess, slits, (v) => v.set(0.32, 0.9, 1))
     put(new THREE.BoxGeometry(1.1, 1, 0.3).translate(0, 0.5, 0.1), MAT.stone, pil, (v, k) => v.set(1, k, 1))
+    // 飛び出した石・欠けた石（壁を平らに見せない）。遊ぶ面より奥（最大 0.45m）
+    const blocks = []
+    for (let i = 0; i < (this.lowEnd ? 500 : 1100); i++) blocks.push([rnd() * 2 * Math.PI * R, -30 + rnd() * (yTop - 40), rnd()])
+    const bg = new THREE.BoxGeometry(1, 1, 1).translate(0, 0, 0.5)
+    const imB = new THREE.InstancedMesh(bg, MAT.stone, blocks.length)
+    { const mm = new THREE.Matrix4(), qq = new THREE.Quaternion(), pp = new THREE.Vector3(), ss = new THREE.Vector3()
+      blocks.forEach(([x, y, r], i) => { const f = x / R; pp.set(Math.sin(f) * (WALL_R - 0.1), Math.round(y / 0.9) * 0.9, Math.cos(f) * (WALL_R - 0.1)); qq.setFromEuler(new THREE.Euler(0, f, (r - 0.5) * 0.05)); ss.set(1.2 + r * 1.6, 0.85, 0.12 + r * 0.33); mm.compose(pp, qq, ss); imB.setMatrixAt(i, mm) }) }
+    imB.castShadow = true; imB.receiveShadow = true
+    this.root.add(imB)
+    // 帯の下の雨だれのしみ（暗いぼかしの板）
+    const st = stainTex()
+    const sm = new THREE.MeshBasicMaterial({ map: st, transparent: true, depthWrite: false, color: 0xffffff, blending: THREE.MultiplyBlending, premultipliedAlpha: true, toneMapped: false, fog: false })
+    const sg = new THREE.PlaneGeometry(1, 1).translate(0, -0.5, 0)
+    const stains = []
+    for (const b of bandYs) for (let i = 0; i < 26; i++) stains.push([rnd() * 2 * Math.PI * R, b - 0.3, 2 + rnd() * 5, 2 + rnd() * 6])
+    const imS = new THREE.InstancedMesh(sg, sm, stains.length)
+    { const mm = new THREE.Matrix4(), qq = new THREE.Quaternion(), pp = new THREE.Vector3(), ss = new THREE.Vector3()
+      stains.forEach(([x, y, w, h], i) => { const f = x / R; pp.set(Math.sin(f) * (WALL_R + 0.03), y, Math.cos(f) * (WALL_R + 0.03)); qq.setFromEuler(new THREE.Euler(0, f, 0)); ss.set(w, h, 1); mm.compose(pp, qq, ss); imS.setMatrixAt(i, mm) }) }
+    imS.renderOrder = 1
+    this.root.add(imS)
+    // 張り出した露台（手すりと持ち送り付き）。遊ぶ面より奥（壁から 1.9m まで）
+    const balc = []
+    for (let i = 0; i < (this.lowEnd ? 40 : 80); i++) balc.push([rnd() * 2 * Math.PI * R, -20 + rnd() * (yTop - 30), 2.4 + rnd() * 2.4])
+    const parts = [
+      [new THREE.BoxGeometry(1, 0.32, 1.7).translate(0, 0, 0.85), MAT.trim, 1],
+      [new THREE.BoxGeometry(1, 0.9, 0.16).translate(0, 0.6, 1.62), MAT.stone, 1],
+      [new THREE.BoxGeometry(1, 0.12, 0.26).translate(0, 1.08, 1.62), MAT.trim, 1],
+    ]
+    for (const [geo, mat] of parts) {
+      const im = new THREE.InstancedMesh(geo, mat, balc.length)
+      const mm = new THREE.Matrix4(), qq = new THREE.Quaternion(), pp = new THREE.Vector3(), ss = new THREE.Vector3()
+      balc.forEach(([x, y, w], i) => { const f = x / R; pp.set(Math.sin(f) * WALL_R, y, Math.cos(f) * WALL_R); qq.setFromEuler(new THREE.Euler(0, f, 0)); ss.set(w, 1, 1); mm.compose(pp, qq, ss); im.setMatrixAt(i, mm) })
+      im.castShadow = true; im.receiveShadow = true; this.root.add(im)
+    }
+    // 露台の下の持ち送り（2本ずつ）
+    { const cg = new THREE.BoxGeometry(0.35, 0.9, 1.3).translate(0, -0.6, 0.65)
+      const im = new THREE.InstancedMesh(cg, MAT.stone, balc.length * 2)
+      const mm = new THREE.Matrix4(), qq = new THREE.Quaternion(), pp = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1)
+      balc.forEach(([x, y, w], i) => { for (const sgn of [-1, 1]) { const xx = x + sgn * (w / 2 - 0.4), f = xx / R; pp.set(Math.sin(f) * WALL_R, y, Math.cos(f) * WALL_R); qq.setFromEuler(new THREE.Euler(0, f, 0)); mm.compose(pp, qq, one); im.setMatrixAt(i * 2 + (sgn > 0 ? 1 : 0), mm) } })
+      im.castShadow = true; im.receiveShadow = true; this.root.add(im) }
   }
   archGeo() {
     // 壁に浅く彫ったアーチ: 枠（石）と奥（暗い）を別に
@@ -164,11 +207,11 @@ export class View {
     // ツタ（描いた4本の束を板に貼る）。壁から少し浮かせ、遊ぶ面より奥
     const tx = new THREE.TextureLoader().load('assets/vines.webp'); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = ANISO
     const rnd = mulberry(31)
-    const n = this.lowEnd ? 90 : 170
+    const n = this.lowEnd ? 160 : 340
     const per = [[], [], [], []]
     for (let i = 0; i < n; i++) {
       const x = rnd() * 2 * Math.PI * R, y = -20 + rnd() * (this.yTop - 30)
-      per[Math.floor(rnd() * 4)].push([x, y, 4 + rnd() * 6, (rnd() - 0.5) * 0.15])
+      per[Math.floor(rnd() * 4)].push([x, y, 4 + rnd() * 9, (rnd() - 0.5) * 0.15, 1 + rnd() * 0.8])
     }
     per.forEach((list, k) => {
       const t = tx.clone(); t.repeat.set(0.25, 1); t.offset.set(k * 0.25, 0); t.needsUpdate = true
@@ -176,7 +219,7 @@ export class View {
       const geo = new THREE.PlaneGeometry(1.6, 1).translate(0, -0.5, 0)
       const im = new THREE.InstancedMesh(geo, mat, list.length)
       const mm = new THREE.Matrix4(), qq = new THREE.Quaternion(), pp = new THREE.Vector3(), ss = new THREE.Vector3()
-      list.forEach(([x, y, h, rot], i) => { const f = x / R; pp.set(Math.sin(f) * (WALL_R + 0.12), y, Math.cos(f) * (WALL_R + 0.12)); qq.setFromEuler(new THREE.Euler(0, f, rot)); ss.set(1.1, h, 1); mm.compose(pp, qq, ss); im.setMatrixAt(i, mm) })
+      list.forEach(([x, y, h, rot, w], i) => { const f = x / R; pp.set(Math.sin(f) * (WALL_R + 0.12), y, Math.cos(f) * (WALL_R + 0.12)); qq.setFromEuler(new THREE.Euler(0, f, rot)); ss.set(w, h, 1); mm.compose(pp, qq, ss); im.setMatrixAt(i, mm) })
       im.castShadow = true; im.receiveShadow = true
       im.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: t, alphaTest: 0.45 })
       this.root.add(im)
@@ -215,8 +258,8 @@ export class View {
       // 台座の形は3種（石の持ち送り・木の梁・鉄の腕）。崩れる点はいつもひびの入った石
       const style = kind === 'crumble' ? 0 : ((a.i * 7 + 3) % 10 < 6 ? 0 : (a.i * 7 + 3) % 10 < 9 ? 1 : 2)
       let base
-      if (style === 0) base = new THREE.Mesh(bentBox(a.x, a.y + 0.15, 1.0, 0.8, 0, bz0, bz1), kind === 'crumble' ? MAT.crack : MAT.stone)
-      else if (style === 1) base = new THREE.Mesh(bentBox(a.x, a.y + 0.6, 0.34, 0.34, 0, bz0, 0.12), MAT.wood)
+      if (style === 0) base = new THREE.Mesh(bentBox(a.x, a.y + 0.2, 1.3, 1.05, 0, bz0, bz1), kind === 'crumble' ? MAT.crack : MAT.stone)
+      else if (style === 1) base = new THREE.Mesh(bentBox(a.x, a.y + 0.62, 0.42, 0.42, 0, bz0, 0.2), MAT.wood)
       else base = new THREE.Mesh(bentBox(a.x, a.y + 0.45, 0.16, 0.22, 0, bz0, 0.05), MAT.iron)
       base.castShadow = true; base.receiveShadow = true
       if (!a.move) this.root.add(base)
@@ -332,6 +375,45 @@ export class View {
     this.root.add(this.aimLine)
   }
 
+  buildLandmarks() {
+    const C = this.W.course
+    // 出発の広場: 折れた柱（遊ぶ面より奥）
+    const colG = new THREE.CylinderGeometry(0.55, 0.62, 1, 14)
+    const capG = new THREE.BoxGeometry(1.6, 0.4, 1.6)
+    for (const [x, h] of [[-14, 6.5], [-10.5, 3.2], [-6.5, 7.5], [-3, 2.2]]) {
+      const c = new THREE.Mesh(colG, MAT.trim); to3(x, h / 2, -1.6, c.position); c.scale.y = h; c.rotation.y = x / R; c.castShadow = c.receiveShadow = true; this.root.add(c)
+      const b = new THREE.Mesh(capG, MAT.stone); to3(x, 0.2, -1.6, b.position); b.rotation.y = x / R; b.castShadow = b.receiveShadow = true; this.root.add(b)
+      if (h > 6) { const cp = new THREE.Mesh(capG, MAT.trim); to3(x, h, -1.6, cp.position); cp.rotation.y = x / R; cp.castShadow = true; this.root.add(cp) }
+    }
+    // 頂上の門: 2本の柱と梁、その上に大きな旗
+    const T = C.top
+    const gx = T.x, gy = T.y
+    for (const dx of [-5, 5]) {
+      const c = new THREE.Mesh(colG, MAT.trim); to3(gx + dx, gy + 4, -1.4, c.position); c.scale.set(1.3, 8, 1.3); c.rotation.y = (gx + dx) / R; c.castShadow = c.receiveShadow = true; this.root.add(c)
+    }
+    const beam = new THREE.Mesh(bentBox(gx, gy + 8.6, 13, 1.3, 0, WALL_R - R, -0.6), MAT.trim); beam.castShadow = true; this.root.add(beam)
+    const cg = new THREE.PlaneGeometry(4, 6, 10, 12); cg.translate(0, -3, 0)
+    const cm = MAT.cloth.clone(); cm.map = bannerTex(); cm.alphaTest = 0.5; cm.color.set(0xffffff)
+    const ban = new THREE.Mesh(cg, cm); to3(gx, gy + 8, -0.5, ban.position); ban.rotation.y = gx / R; ban.castShadow = true; this.root.add(ban)
+    this.flagMeshes.push({ f: { x: gx, y: gy }, g: ban, cloth: ban, base: cg.attributes.position.array.slice(), big: true })
+  }
+
+  buildDust() {
+    // 風に舞う砂ぼこり（カメラのまわりに漂う粒。突風の中では濃く速く）
+    const n = this.lowEnd ? 260 : 600
+    const g = new THREE.BufferGeometry()
+    this.dustP = new Float32Array(n * 3); this.dustS = []
+    const r = mulberry(77)
+    for (let i = 0; i < n; i++) this.dustS.push({ x: (r() - 0.5) * 50, y: (r() - 0.5) * 40, z: -1 + r() * 14, sp: 0.6 + r() * 1.4, ph: r() * 6 })
+    g.setAttribute('position', new THREE.BufferAttribute(this.dustP, 3))
+    const c = document.createElement('canvas'); c.width = c.height = 32
+    const x = c.getContext('2d'), gr = x.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,240,215,1)'); gr.addColorStop(1, 'rgba(255,240,215,0)'); x.fillStyle = gr; x.fillRect(0, 0, 32, 32)
+    const m = new THREE.PointsMaterial({ size: 0.13, map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, opacity: 0.55, color: 0xf3dcb4 })
+    this.dust = new THREE.Points(g, m); this.dust.frustumCulled = false
+    this.root.add(this.dust)
+    this.dustOff = 0
+  }
+
   buildMarks() {
     // 狙っている点の印（画面に向く輪）
     const t = ringTexture()
@@ -397,6 +479,7 @@ export class View {
       const p = fm.cloth.geometry.attributes.position
       for (let i = 0; i < p.count; i++) {
         const x = fm.base[i * 3], y = fm.base[i * 3 + 1]
+        if (fm.big) { p.setZ(i, Math.sin(y * 1.1 - t * 2.4 + x * 0.6) * 0.18 * (-y / 6)); continue }
         p.setZ(i, Math.sin(x * 2.6 - t * 6 + y) * 0.12 * x)
         p.setY(i, y - x * x * 0.05)
       }
@@ -418,6 +501,22 @@ export class View {
         m.compose(pos, qq, sc); gf.mesh.setMatrixAt(i, m)
       })
       gf.mesh.instanceMatrix.needsUpdate = true
+    }
+    // 砂ぼこり
+    if (this.dust && ui.camX != null) {
+      let gust = 0
+      for (const gs of W.gusts) if (Math.abs((gs.y0 + gs.y1) / 2 - ui.camY) < 20) gust = Math.max(gust, gustAt(gs, t) * Math.sign(gs.fx))
+      this.dustOff += dt * (1.2 + gust * 9)
+      const v = new THREE.Vector3()
+      this.dustS.forEach((d, i) => {
+        let x = d.x + this.dustOff * d.sp; x = ((x + 25) % 50 + 50) % 50 - 25
+        const y = d.y + Math.sin(t * 0.7 + d.ph) * 0.6 - this.dustOff * 0.08 * d.sp
+        const yy = ((y + 20) % 40 + 40) % 40 - 20
+        to3(ui.camX + x, ui.camY + yy, d.z, v)
+        this.dustP[i * 3] = v.x; this.dustP[i * 3 + 1] = v.y; this.dustP[i * 3 + 2] = v.z
+      })
+      this.dust.geometry.attributes.position.needsUpdate = true
+      this.dust.material.opacity = 0.4 + Math.abs(gust) * 0.4
     }
     // ワイヤー
     if (S.rope && ui.hand) {
@@ -448,6 +547,20 @@ export class View {
 }
 
 function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 } }
+function stainTex() {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 128
+  const x = c.getContext('2d'), r = mulberry(9)
+  for (let i = 0; i < 18; i++) {
+    const cx = 4 + r() * 56, w = 3 + r() * 9, h = 40 + r() * 88
+    const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(0,0,0,0.55)'); g.addColorStop(1, 'rgba(0,0,0,0)')
+    x.fillStyle = g; x.fillRect(cx - w / 2, 0, w, h)
+  }
+  // 白（=かけても変わらない）へ置き換える: 暗い所だけ色を落とす
+  const d = x.getImageData(0, 0, 64, 128)
+  for (let i = 0; i < d.data.length; i += 4) { const a = d.data[i + 3] / 255; const v = 255 * (1 - a * 0.6); d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255 }
+  x.putImageData(d, 0, 0)
+  const t = new THREE.CanvasTexture(c); return t
+}
 let _banner = null
 function bannerTex() {
   if (_banner) return _banner
@@ -459,8 +572,8 @@ function bannerTex() {
   const r = mulberry(5)
   for (let i = 0; i < 70; i++) { x.fillStyle = `rgba(${90 + r() * 40},${60 + r() * 30},${30},${0.04 + r() * 0.06})`; x.beginPath(); x.ellipse(r() * 256, r() * 160, 4 + r() * 26, 3 + r() * 14, r() * 3, 0, 7); x.fill() }
   x.strokeStyle = 'rgba(140,48,34,0.75)'; x.lineWidth = 9; x.lineCap = 'round'
-  x.beginPath(); x.moveTo(128, 30); x.lineTo(128, 92); x.stroke()
-  x.beginPath(); x.arc(128, 108, 18, Math.PI * 1.1, Math.PI * 0.05, true); x.stroke()
+  x.beginPath(); x.arc(128, 78, 30, 0, Math.PI * 2); x.stroke()
+  x.beginPath(); x.moveTo(128, 20); x.lineTo(128, 48); x.stroke()
   // 裾と先のほつれ（透明に切る）
   x.globalCompositeOperation = 'destination-out'
   for (let i = 0; i < 26; i++) { const px = 140 + r() * 116, w = 3 + r() * 9, h = 10 + r() * 40; x.beginPath(); x.moveTo(px, 160); x.lineTo(px + w, 160 - h); x.lineTo(px + w * 2, 160); x.fill() }

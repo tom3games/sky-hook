@@ -128,17 +128,20 @@ export function exploreAll(W, opt = {}) {
     const k = key(S); if (seen.has(k)) return
     const n = { k, S, prev, how, i: S.rope ? S.rope.i : -1, y: S.p.y }
     seen.set(k, n); queue.push(n)
+    if (opt.stop && ((opt.stop.ring != null && S.rope && S.rope.i === opt.stop.ring) || (opt.stop.top && (S.done || (S.p.y > W.top.y - 0.5 && Math.abs(S.p.x - W.top.x) < W.top.w))))) stopHit = true
   }
   // 出発: 立った状態で始める（数コマ落ち着かせる）
   if (!opt.S0) for (let f = 0; f < 20; f++) step(W, S0, { hook: false, pump: 0 })
   push(S0, null, 'start')
   const reached = new Set()
   const edges = []
+  let stopHit = false
   let qi = 0
   const t0 = Date.now()
   while (qi < queue.length) {
     const n = queue[qi++]
     if (opt.maxNodes && qi > opt.maxNodes) break
+    if (stopHit) break
     if (n.S.rope) {
       reached.add(n.S.rope.i)
       const ex = expandHang(W, n.S, H)

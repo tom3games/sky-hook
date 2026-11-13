@@ -5,7 +5,7 @@ process.env.PORT = String(5500 + Math.floor(Math.random() * 400))
 await import('./server.mjs')
 const br = await chromium.launch({ args: ['--use-gl=angle', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
 const p = await (await br.newContext({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 })).newPage()
-await p.goto(`http://localhost:${process.env.PORT}/?play=1&q=high`)
+await p.goto(`http://localhost:${process.env.PORT}/?play=1&q=high&nolock=1`)
 await p.waitForFunction('window.__hookReady', null, { timeout: 40000 })
 // 風車の層の旗から、回る輪のそばで大きく振らせる
 await p.evaluate(() => {

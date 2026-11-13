@@ -8,7 +8,7 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="SKY HOOK">
 <meta property="og:description" content="短いワイヤーで、雲の上の塔を登る。掛ける点を選び、こいで、離す。">
-<meta property="og:image" content="https://tom3games.github.io/sky-hook/og.png?v=1">
+<meta property="og:image" content="https://tom3games.github.io/sky-hook/og.png?v=2">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:url" content="https://tom3games.github.io/sky-hook/">
@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=1">
+<link rel="stylesheet" href="style.css?v=2">
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
 </head>
 <body>
@@ -55,10 +55,10 @@
     <h2 data-t="how">遊び方</h2>
     <p class="how-lead" data-t="how_lead"></p>
     <table class="keys">
-      <tr><th data-t="k_hook">掛ける</th><td data-t="k_hook_pc">輪をクリックして押したまま</td><td data-t="k_hook_sp">輪を押したまま</td></tr>
+      <tr><th data-t="k_hook">掛ける</th><td data-t="k_hook_pc">照準を輪に合わせてクリックしたまま</td><td data-t="k_hook_sp">輪を押したまま／右下のボタンを押したまま</td></tr>
       <tr><th data-t="k_rel">離す</th><td data-t="k_rel_pc">ボタンを離す</td><td data-t="k_rel_sp">指を離す</td></tr>
       <tr><th data-t="k_pump">こぐ</th><td>A D / ← →</td><td data-t="k_pump_sp">左下のボタン</td></tr>
-      <tr><th data-t="k_look">見回す</th><td data-t="k_look_pc">何もない所をドラッグ</td><td data-t="k_look_sp">何もない所をなぞる</td></tr>
+      <tr><th data-t="k_look">見回す・狙う</th><td data-t="k_look_pc">マウスを動かす（クリックで固定・Esc で解除）</td><td data-t="k_look_sp">何もない所をなぞる</td></tr>
       <tr><th data-t="k_cp">旗へ戻る</th><td>R</td><td data-t="k_cp_sp">右上の矢印</td></tr>
     </table>
     <ul class="tips"><li data-t="tip1"></li><li data-t="tip2"></li><li data-t="tip3"></li><li data-t="tip4"></li></ul>
@@ -68,10 +68,12 @@
 </section>
 
 <div id="hud" hidden>
-  <div class="alt" aria-hidden="true"><div class="alt-track" id="altTrack"><div class="alt-me" id="altMe"><span id="altNum">0m</span></div></div></div>
+  <div class="alt" aria-hidden="true"><div class="alt-track" id="altTrack"><span class="alt-top" id="altTop"></span><div class="alt-me" id="altMe"><span id="altNum">0m</span></div></div></div>
   <div class="watch"><span id="tm">0:00</span><span class="falls"><i data-t="falls">落下</i><b id="fl">0</b></span></div>
   <div id="toast"></div>
+  <div id="reticle"><i></i></div>
   <div id="tut"></div>
+  <svg id="finger" viewBox="0 0 54 54" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="none" stroke="#fff6e6" stroke-width="2.5"/><path d="M14 16 L14 40 Q14 48 22 48 L34 48 Q42 48 42 38 L42 28 Q42 24 38 24 L36 24 L36 22 Q36 18 32 18 L30 18 Q26 14 22 18 L22 6 Q22 2 18 2 Q14 2 14 6 Z" fill="#efe2c6" stroke="#2a1f16" stroke-width="2"/></svg>
   <div class="tbar">
     <button id="bCp" class="ic" aria-label="旗へ戻る"><svg viewBox="0 0 24 24"><path d="M5 12a7 7 0 1 0 2.2-5.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 3.5v4.5h4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button id="bMenu" class="ic" aria-label="一時停止"><svg viewBox="0 0 24 24"><path d="M8.5 5v14M15.5 5v14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
@@ -79,6 +81,7 @@
 </div>
 
 <div id="touch" hidden>
+  <button id="hookBtn" aria-label="掛ける"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 6 V22" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><circle cx="24" cy="31" r="9" fill="none" stroke="currentColor" stroke-width="3.6"/></svg><span data-t="k_hook">掛ける</span></button>
   <button class="pump" data-k="-1" aria-label="左へこぐ"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 10 L16 24 L30 38" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   <button class="pump" data-k="1" aria-label="右へこぐ"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 10 L32 24 L18 38" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 </div>
@@ -130,8 +133,8 @@
   },12000);
 })();
 </script>
-<script src="js/sfx.js?v=1"></script>
-<script src="support.js?v=1" defer></script>
-<script type="module" src="js/game.js?v=1"></script>
+<script src="js/sfx.js?v=2"></script>
+<script src="support.js?v=2" defer></script>
+<script type="module" src="js/game.js?v=2"></script>
 </body>
 </html>

@@ -23,7 +23,7 @@ async function open(browser, opts = {}, q = '') {
   const p = await ctx.newPage(); p.errs = []
   p.on('pageerror', e => p.errs.push('pageerror ' + e.message))
   p.on('console', m => { if (m.type() === 'error') p.errs.push('console ' + m.text()) })
-  p.on('requestfailed', r => { if (!/fonts\.(googleapis|gstatic)/.test(r.url())) p.errs.push('reqfail ' + r.url()) })
+  p.on('requestfailed', r => { if (!/fonts\.(googleapis|gstatic)/.test(r.url()) && !/ABORTED|cancelled/i.test(r.failure()?.errorText || '')) p.errs.push('reqfail ' + r.url()) })
   await p.goto(URL0 + q); await p.waitForFunction(() => window.__hookReady, null, { timeout: 30000 })
   return p
 }
@@ -52,6 +52,7 @@ for (const [ename, eng] of [['chromium', chromium], ['webkit', webkit]]) {
     expect(pb && pb.width >= 64, 'pump button small')
     await p.evaluate(() => { hook.place(-0.5, 0.4) }); await p.waitForTimeout(300)
     expect((await p.evaluate(() => hook.grabbable())).includes(0), 'ring 0 not in reach')
+    await p.evaluate(() => hook.aimAt(0)); await p.waitForTimeout(200)
     const a = await p.evaluate(() => hook.anchorXY(0))
     await p.touchscreen.tap(a.x + 30, a.y + 22)   // 36px ずらして押す
     // tap は押してすぐ離すので、押しっぱなしは CDP で
@@ -111,12 +112,14 @@ for (const [ename, eng] of [['chromium', chromium], ['webkit', webkit]]) {
   }
   // ---- PC: マウスで押したまま掛ける・離す、英語
   await t(`${ename} PC マウスで掛ける・英語・一時停止`, async () => {
-    const p = await open(br, { viewport: { width: 1280, height: 720 } })
+    const p = await open(br, { viewport: { width: 1280, height: 720 } }, '?nolock=1')
     await p.click('#langBtn'); expect((await p.textContent('#startBtn b')) === 'Climb', 'english')
     await p.click('#startBtn'); await p.waitForTimeout(500)
     await p.evaluate(() => hook.place(-0.5, 0.4)); await p.waitForTimeout(300)
-    const a = await p.evaluate(() => hook.anchorXY(0))
-    await p.mouse.move(a.x + 20, a.y - 15); await p.mouse.down()
+    // 照準（画面の中央）を輪 0 に合わせ、照準が輪 0 を選んでいるかを見てからクリック
+    const hv = await p.evaluate(() => hook.aimAt(0))
+    expect(hv === 0, 'reticle not on ring 0: ' + hv)
+    await p.mouse.move(640, 360); await p.mouse.down()
     await p.waitForFunction(() => !!hook.S.rope, null, { timeout: 3000 }).catch(() => {})
     expect(await p.evaluate(() => !!hook.S.rope), 'no hook with mouse')
     await p.keyboard.down('KeyD'); await p.waitForTimeout(800); await p.keyboard.up('KeyD')
@@ -131,6 +134,21 @@ for (const [ename, eng] of [['chromium', chromium], ['webkit', webkit]]) {
     await p.click('#pResume')
     expect(!p.errs.length, p.errs.join(' | '))
     await p.context().close()
+  })
+  // ---- 照準と実際に掛かる輪がずれない: 各旗で、届く輪に照準を向けると、その輪が選ばれ、押すとその輪に掛かる
+  await t(`${ename} 照準と掛かる輪が一致（旗ごと・届く輪全部）`, async () => {
+    const p = await open(br, { viewport: { width: 1280, height: 720 } }, '?play=1&nolock=1')
+    let n = 0, bad = []
+    for (let f = 0; f < 7; f++) {
+      const r = await p.evaluate(fl => { hook.warpFlag(fl); const out = []; for (const i of hook.grabbable()) { const h = hook.aimAt(i); out.push([i, h]) } return out }, f)
+      for (const [i, h] of r) { n++; if (i !== h) bad.push(f + ':' + i + '->' + h) }
+    }
+    // 押すと狙った輪に掛かる（物理の 1 コマで確かめる）
+    const hookOk = await p.evaluate(() => { hook.warpFlag(2); const i = hook.grabbable()[0]; hook.aimAt(i); const ok0 = hook.hover; hook.frame(2, { hook: true, target: ok0, pump: 0 }); return hook.S.rope && hook.S.rope.i === i })
+    expect(!bad.length, bad.join(' '))
+    expect(hookOk, 'hook target mismatch')
+    await p.context().close()
+    return { rings: n }
   })
   // ---- 落ちたら旗の足場に戻る
   await t(`${ename} 落ちたら旗へ戻る`, async () => {
