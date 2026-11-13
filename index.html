@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>SKY HOOK｜雲の上の塔を、短いワイヤーの振り子で登る3Dアクション</title>
+<meta name="description" content="雲海にそびえる砂岩の塔を、届く距離の短いワイヤーで登る3Dアクション。掛ける点は自分で選び、こいで振れを大きくして、頂点の手前で離して次の輪へ跳び移る。崩れる足場、突風、風車の羽根。落ちたら旗まで戻る。ブラウザで遊べる。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="SKY HOOK">
+<meta property="og:description" content="短いワイヤーで、雲の上の塔を登る。掛ける点を選び、こいで、離す。">
+<meta property="og:image" content="https://tom3games.github.io/sky-hook/og.png?v=1">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://tom3games.github.io/sky-hook/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#557198">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=1">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
+</head>
+<body>
+<div id="view"></div>
+<div id="flash"></div>
+<canvas id="speedfx"></canvas>
+
+<section id="loading" class="screen">
+  <div class="ld">
+    <svg class="ld-hook" viewBox="0 0 60 90" aria-hidden="true"><g class="ld-sw"><path d="M30 4 V54" stroke="#3a2e26" stroke-width="2"/><circle cx="30" cy="62" r="8" fill="none" stroke="#3a2e26" stroke-width="3.2"/></g><rect x="20" y="0" width="20" height="6" fill="#b0825d"/></svg>
+    <p class="ld-txt" data-t="loading">塔へ向かう</p>
+    <div class="ld-bar"><i id="ldFill"></i></div>
+  </div>
+</section>
+
+<section id="title" class="screen" hidden>
+  <div class="t-left">
+    <p class="t-kicker" data-t="kicker">雲の上まで、振り子で。</p>
+    <h1 class="logo"><span class="en">SKY HOOK</span><span class="sub" data-t="logo_sub">砂の塔を、短いワイヤーで登る</span></h1>
+    <nav class="t-menu">
+      <button id="startBtn" class="go main"><b data-t="start">登る</b><small id="bestTxt"></small></button>
+      <button id="contBtn" class="go2" hidden><b data-t="cont">旗から続ける</b></button>
+    </nav>
+  </div>
+  <div class="t-foot">
+    <button id="howBtn" class="link" data-t="how">遊び方</button>
+    <button id="langBtn" class="link">English</button>
+    <button id="muteBtn" class="link" data-t="sound_on">音 あり</button>
+  </div>
+</section>
+
+<section id="how" class="screen" hidden>
+  <div class="panel">
+    <h2 data-t="how">遊び方</h2>
+    <p class="how-lead" data-t="how_lead"></p>
+    <table class="keys">
+      <tr><th data-t="k_hook">掛ける</th><td data-t="k_hook_pc">輪をクリックして押したまま</td><td data-t="k_hook_sp">輪を押したまま</td></tr>
+      <tr><th data-t="k_rel">離す</th><td data-t="k_rel_pc">ボタンを離す</td><td data-t="k_rel_sp">指を離す</td></tr>
+      <tr><th data-t="k_pump">こぐ</th><td>A D / ← →</td><td data-t="k_pump_sp">左下のボタン</td></tr>
+      <tr><th data-t="k_look">見回す</th><td data-t="k_look_pc">何もない所をドラッグ</td><td data-t="k_look_sp">何もない所をなぞる</td></tr>
+      <tr><th data-t="k_cp">旗へ戻る</th><td>R</td><td data-t="k_cp_sp">右上の矢印</td></tr>
+    </table>
+    <ul class="tips"><li data-t="tip1"></li><li data-t="tip2"></li><li data-t="tip3"></li><li data-t="tip4"></li></ul>
+    <p class="credit" data-t="credit"></p>
+    <button id="howClose" class="go" data-t="back">もどる</button>
+  </div>
+</section>
+
+<div id="hud" hidden>
+  <div class="alt" aria-hidden="true"><div class="alt-track" id="altTrack"><div class="alt-me" id="altMe"><span id="altNum">0m</span></div></div></div>
+  <div class="watch"><span id="tm">0:00</span><span class="falls"><i data-t="falls">落下</i><b id="fl">0</b></span></div>
+  <div id="toast"></div>
+  <div id="tut"></div>
+  <div class="tbar">
+    <button id="bCp" class="ic" aria-label="旗へ戻る"><svg viewBox="0 0 24 24"><path d="M5 12a7 7 0 1 0 2.2-5.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 3.5v4.5h4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button id="bMenu" class="ic" aria-label="一時停止"><svg viewBox="0 0 24 24"><path d="M8.5 5v14M15.5 5v14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+  </div>
+</div>
+
+<div id="touch" hidden>
+  <button class="pump" data-k="-1" aria-label="左へこぐ"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 10 L16 24 L30 38" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <button class="pump" data-k="1" aria-label="右へこぐ"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 10 L32 24 L18 38" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+</div>
+
+<section id="result" class="screen" hidden>
+  <div class="panel tablet">
+    <p class="tk-title" data-t="arrived">頂上</p>
+    <div class="tk-row"><span data-t="time">時間</span><b id="rTime">0:00</b></div>
+    <div class="tk-row"><span data-t="falls">落下</span><b id="rFalls">0</b></div>
+    <div class="tk-row"><span data-t="best">自己ベスト</span><b id="rBest">-</b></div>
+    <div class="tk-btns">
+      <button id="rRetry" class="go" data-t="retry">もう一回</button>
+      <a id="rShare" class="go2" target="_blank" rel="noopener"><span data-t="share">Xでポスト</span></a>
+      <button id="rMenu" class="link" data-t="menu">メニュー</button>
+    </div>
+  </div>
+</section>
+
+<section id="pause" class="screen" hidden>
+  <div class="panel small">
+    <h2 data-t="paused">一時停止</h2>
+    <button id="pResume" class="go" data-t="resume">続ける</button>
+    <button id="pCp" class="go2" data-t="tocp">旗へ戻る</button>
+    <button id="pHow" class="go2" data-t="how">遊び方</button>
+    <button id="pMenu" class="link" data-t="menu">メニュー</button>
+  </div>
+</section>
+
+<script>
+(function(){
+  var opt={passive:false};
+  ['gesturestart','gesturechange','gestureend'].forEach(function(n){document.addEventListener(n,function(e){e.preventDefault()},opt)});
+  document.addEventListener('touchmove',function(e){if(e.touches&&e.touches.length>1)e.preventDefault()},opt);
+  var last=0;document.addEventListener('touchend',function(e){var n=Date.now();if(n-last<300&&!(e.target.closest&&e.target.closest('button,a')))e.preventDefault();last=n},opt);
+  document.addEventListener('dblclick',function(e){e.preventDefault()},opt);
+  document.addEventListener('contextmenu',function(e){if(e.target.tagName==='CANVAS')e.preventDefault()});
+  window.addEventListener('wheel',function(e){if(e.ctrlKey)e.preventDefault()},opt);
+  window.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&['+','-','=','0',';'].indexOf(e.key)>=0)e.preventDefault()});
+})();
+(function(){
+  var errs=[];window.__hookErr=errs;
+  window.addEventListener('error',function(e){errs.push((e.message||'error')+' @'+(e.filename||'')+':'+(e.lineno||''))});
+  window.addEventListener('unhandledrejection',function(e){errs.push('reject: '+(e.reason&&e.reason.message||e.reason))});
+  setTimeout(function(){
+    if(window.__hookReady||(window.__jsUp&&!errs.length)) return;
+    var d=document.createElement('div');d.id='boot-err';
+    d.textContent='起動できませんでした / failed to start\n'+(errs.join('\n')||'(no error captured)')+'\n'+navigator.userAgent;
+    document.body.appendChild(d);
+  },12000);
+})();
+</script>
+<script src="js/sfx.js?v=1"></script>
+<script src="support.js?v=1" defer></script>
+<script type="module" src="js/game.js?v=1"></script>
+</body>
+</html>
