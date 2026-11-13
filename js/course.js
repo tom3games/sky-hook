@@ -1,4 +1,5 @@
-// SKY HOOK のコース。塔の外周を開いた2次元（x=周に沿った距離 m, y=高さ m）。
+// SKY HOOK のコース。塔の外周を開いた空間（x=周に沿った距離 m, y=高さ m, z=壁から外への距離 m）。
+// 輪は z（奥行き）にも散らす。続く輪は横・上・奥行きの3方向にずれるので、どの向きへ振るかを立体で考える。
 // 見た目（view.js）も当たり（physics.js）もこの一覧から作る。
 // 区間ごとの「なぜワイヤーでないとダメか」は ideas/sky-hook.md の表。
 
@@ -11,30 +12,31 @@ export function makeCourse() {
   // 上面が y の岩棚（x0..x1）
   const ledge = (x0, x1, y, th = 1.4, o = {}) => B((x0 + x1) / 2, y - th / 2, x1 - x0, th, o)
   // 塔から張り出した柱（控え壁）。x0..x1, y0..y1
-  const wall = (x0, x1, y0, y1, o = {}) => B((x0 + x1) / 2, (y0 + y1) / 2, x1 - x0, y1 - y0, o)
-  const sec = (key, y0, y1, o = {}) => C.sections.push({ key, y0, y1, ...o })
-  let cx = 0, cy = 0
-  const R = (dx, dy, kind, o) => { cx += dx; cy += dy > 5 ? 5 + (dy - 5) * 0.4 : dy; return A(cx, cy, kind, o) }   // 道（5m より高い段は詰める: 届く高さは 6m まで）
+  const wall = (x0, x1, y0, y1, o = {}) => B((x0 + x1) / 2, (y0 + y1) / 2, x1 - x0, y1 - y0, { z1: 5, ...o })   // 控え壁は外へ 5m 張り出す
+  const sec = (key, y0, y1, o = {}) => { C.sections.push({ key, y0, y1, ...o }); zi = 0 }
+  let cx = 0, cy = 0, zi = 0
+  const ZP = [0, 2.2, 3.8, 1.6, 0, 2.8]      // 道の輪の奥行き（区間ごとに最初から）
+  const R = (dx, dy, kind, o = {}) => { cx += dx; cy += dy > 5 ? 5 + (dy - 5) * 0.4 : dy; return A(cx, cy, kind, { z: ZP[zi++ % ZP.length], ...o }) }   // 道（5m より高い段は詰める: 届く高さは 6m まで）
   const D = (dx, dy, kind, o) => A(cx + dx, cy + dy, kind, o)                       // 寄り道・罠（今の位置から）
   const go = (x, y) => { cx = x; cy = y }
   // 旗: 旗を巻いた輪（掛けると記録）。左下に小さな足場（落ちたらここに戻る）
-  const F = (dx, dy) => { const i = R(dx, dy, 'ring', { flag: true }); ledge(cx - 4.7, cx - 2.3, cy - 2.2, 0.6, { perch: true }); C.flags.push({ x: cx - 3.5, y: cy - 2.2, w: 2.4, a: i }); return i }
+  const F = (dx, dy) => { const i = R(dx, dy, 'ring', { flag: true, z: 0 }); ledge(cx - 4.7, cx - 2.3, cy - 2.2, 0.6, { perch: true }); C.flags.push({ x: cx - 3.5, y: cy - 2.2, w: 2.4, a: i }); return i }
 
   // ============================================================ 1. 基部（こぐ・離す・選ぶ）
   // 主役: ふつうの輪。初めて見せる → 2つの道 → 張り出しを回り込む → 旗
   sec('base', -2, 42)
-  ledge(-16, 0, 0, 6)                       // 出発の広場（右は切り立った崖）
+  ledge(-16, 0, 0, 6, { z1: 4 })            // 出発の広場（右は切り立った崖）
   wall(-20, -16, -6, 34)                    // 左の控え壁
   A(4.5, 5)                                 // 0: 崖の先。掛けて右へ歩くと落ちて振れる
   A(11, 9.5)                                // 1: 右の道
   A(-2, 9.5)                                // 2: 左の道（広場の上へ振り戻す）
-  A(17, 14)                                 // 3
+  A(17, 14, 'ring', { z: 3 })               // 3: 外へ張り出した梁の先（奥へ振る）
   A(-8, 14)                                 // 4
   ledge(1, 11, 21, 1.0, { mat: 'wood' })    // 張り出した木の床（真上へは抜けられない）
   A(6, 16)                                  // 5: 罠。床の真下。掛けても上へ行けない
-  A(12, 18)                                 // 6
+  A(12, 18, 'ring', { z: 1.5 })             // 6
   A(0, 18)                                  // 7
-  A(16.5, 23)                               // 8: 床の右端を回る
+  A(16.5, 23, 'ring', { z: 2.5 })           // 8: 床の右端を回る
   A(-2.5, 23)                               // 9: 左端を回る
   A(7, 27)                                  // 10: 床の上
   A(13.5, 31)                               // 11
@@ -48,7 +50,7 @@ export function makeCourse() {
   const rw = (dx0, dx1, dy0, dy1, o) => wall(cx + dx0, cx + dx1, cy + dy0, cy + dy1, o)
   const rB = (dx, dy, w, h, o) => B(cx + dx, cy + dy, w, h, o)
   const rG = (dx0, dx1, dy0, dy1, fx, period, duty, ph) => C.gusts.push({ x0: cx + dx0, x1: cx + dx1, y0: cy + dy0, y1: cy + dy1, fx, period, duty, ph })
-  const rH = (o) => C.hazards.push({ ...o, x: cx + o.dx, y: cy + o.dy })
+  const rH = (o) => C.hazards.push({ z: 1.6, dz: 1.0, ...o, x: cx + o.dx, y: cy + o.dy })
 
   // ============================================================ 2. 崩れ回廊（崩れる掛け点）
   // 主役: ひびの入った台座。掛けて 1.6 秒で落ちる。こいでいる暇はない。勢いを持ったまま掛けて振り抜く
@@ -114,6 +116,8 @@ export function makeCourse() {
   R(10, 1)                                  // 56: 羽根の下をくぐる
   R(6, 9, 'ring', { move: { k: 'circle', r: 4.2, w: 0.7, ph: Math.PI / 2 } })   // 57: 回る輪
   R(6, 6)                                   // 58
+  rl(-3, 5, -2, 0.8, { z0: 2.5, z1: 8, mat: 'wood' })   // 奥へ張り出した露台（降りて一息・外の輪へ）
+  D(4, 3.5, 'ring', { z: 7 })               // 露台の外の輪
   R(-8, 5)                                  // 59
   rH({ k: 'blade', dx: -5, dy: 8, n: 3, len: 5, hw: 0.35, w: -0.9, ph: 0.5, reach: 8.5 })
   R(-9, -1, 'ring', { move: { k: 'line', dx: 3.5, dy: 0, w: 1.1 } })   // 60: レールの輪

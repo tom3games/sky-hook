@@ -15,9 +15,9 @@ await p.evaluate(() => {
   hook.DBG.bot = { hook: false, target: -1, pump: 0 }
   const a = W.anchors[target - 2]
   hook.place(a.x - 3, a.y - 5)
-  hook.DBG.bot = { hook: true, target: target - 2, pump: 1 }
+  hook.DBG.bot = { hook: true, target: target - 2, mx: 1, mz: 0 }
   let n = 0
-  hook.DBG.onStep = S => { n++; hook.DBG.bot.pump = S.p.vx >= 0 ? 1 : -1 }
+  hook.DBG.onStep = S => { n++; hook.DBG.bot.mx = S.p.vx >= 0 ? 1 : -1 }
 })
 await p.waitForTimeout(5200)
 await p.evaluate(() => { hook.DBG.frozen = true; document.getElementById('hud').hidden = true; document.getElementById('touch').hidden = true

@@ -26,7 +26,7 @@ const S = 10, Wd = (x1 - x0) * S, Ht = (y1 - y0) * S
 const X = x => ((x - x0) * S).toFixed(1), Y = y => ((y1 - y) * S).toFixed(1)
 let g = `<svg xmlns="http://www.w3.org/2000/svg" width="${Wd}" height="${Ht}" style="background:#1d2226;font:11px sans-serif">`
 for (let yy = Math.ceil(y0 / 10) * 10; yy < y1; yy += 10) g += `<line x1="0" x2="${Wd}" y1="${Y(yy)}" y2="${Y(yy)}" stroke="#2c3338"/><text x="2" y="${Y(yy) - 2}" fill="#567">${yy}</text>`
-for (const s of W.solids) g += `<rect x="${X(s.x - s.hw)}" y="${Y(s.y + s.hh)}" width="${s.w * S}" height="${s.h * S}" fill="${s.mat === 'wood' ? '#6a5236' : '#6b6f70'}" transform="rotate(${-(s.a || 0) * 57.3} ${X(s.x)} ${Y(s.y)})"/>`
+for (const s of W.solids) g += `<rect x="${X(s.x0)}" y="${Y(s.y1)}" width="${(s.x1 - s.x0) * S}" height="${(s.y1 - s.y0) * S}" fill="${s.mat === 'wood' ? '#6a5236' : '#6b6f70'}" transform="rotate(${-(s.a || 0) * 57.3} ${X(s.x)} ${Y(s.y)})"/>`
 const drawn = new Set()
 for (const e of R.edges) { const k = e.a + '-' + e.b; if (drawn.has(k) || e.a < 0) continue; drawn.add(k); const a = W.anchors[e.a], b = W.anchors[e.b]; g += `<line x1="${X(a.x)}" y1="${Y(a.y)}" x2="${X(b.x)}" y2="${Y(b.y)}" stroke="${e.win > 12 ? '#3c8' : '#c93'}" stroke-opacity=".55" stroke-width="1.5" marker-end=""/>` }
 for (const f of W.flags) g += `<path d="M${X(f.x)} ${Y(f.y)} v-26 l14 5 l-14 5" stroke="#eec" fill="#dcb755"/>`

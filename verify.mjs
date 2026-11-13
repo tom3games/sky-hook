@@ -5,7 +5,7 @@ import { chromium, webkit } from 'playwright'
 import { mkdirSync } from 'node:fs'
 const ROOT = import.meta.dirname
 mkdirSync(ROOT + '/shots/v', { recursive: true })
-process.env.PORT = String(5800 + Math.floor(Math.random() * 300))
+process.env.PORT = String(6000 + Math.floor(Math.random() * 3000))
 await import('./server.mjs')
 const URL0 = `http://localhost:${process.env.PORT}/`
 let pass = 0, fail = 0
@@ -48,8 +48,8 @@ for (const [ename, eng] of [['chromium', chromium], ['webkit', webkit]]) {
     expect(await p.evaluate(() => hook.mode) === 'play', 'not playing')
     expect(await p.evaluate(() => window.__muteOk ? window.__muteOk() : true), 'sound not muted')
     // 輪0 が届くまで右へ（こぐボタンを押したまま）
-    const pb = await p.locator('.pump[data-k="1"]').boundingBox()
-    expect(pb && pb.width >= 64, 'pump button small')
+    const pb = await p.locator('#stick').boundingBox()
+    expect(pb && pb.width >= 100, 'stick small')
     await p.evaluate(() => { hook.place(-0.5, 0.4) }); await p.waitForTimeout(300)
     expect((await p.evaluate(() => hook.grabbable())).includes(0), 'ring 0 not in reach')
     await p.evaluate(() => hook.aimAt(0)); await p.waitForTimeout(200)
@@ -96,7 +96,7 @@ for (const [ename, eng] of [['chromium', chromium], ['webkit', webkit]]) {
       const pr = await p.locator('#how .panel').boundingBox(); expect(pr.y >= 0 && pr.y + pr.height <= h + 1, 'how panel overflow')
       await p.screenshot({ path: `shots/v/${ename}_${w}x${h}_how.png` })
       await p.click('#howClose'); await p.click('#startBtn'); await p.waitForTimeout(700)
-      for (const sel of touch ? ['.pump[data-k="-1"]', '.pump[data-k="1"]', '#bCp', '#bMenu'] : ['#bCp', '#bMenu']) {
+      for (const sel of touch ? ['#stick', '#jumpBtn', '#hookBtn', '#bCp', '#bMenu'] : ['#bCp', '#bMenu']) {
         const b = await p.locator(sel).boundingBox(); expect(b && b.x >= 0 && b.y >= 0 && b.x + b.width <= w && b.y + b.height <= h, sel + ' off screen')
       }
       // 遊び中に見えている輪が画面内にあるか（掛ける点が押せる）

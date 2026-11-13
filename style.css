@@ -74,8 +74,6 @@ body.touch .keys td:nth-child(2), body:not(.touch) .keys td:nth-child(3) { displ
 
 /* スマホのこぐボタン */
 #touch { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
-#touch .pump { position: absolute; bottom: calc(var(--bot) + 16px); pointer-events: auto; }
-#touch .pump[data-k="-1"] { left: 12px; } #touch .pump[data-k="1"] { left: 108px; }
 #hookBtn { position: absolute; right: 14px; bottom: calc(var(--bot) + 18px); width: 104px; height: 104px; border-radius: 50%; pointer-events: auto; display: grid; place-items: center; align-content: center; gap: 0; color: var(--ink); background: rgba(233, 212, 155, .9); border: 3px solid #fff6e6; box-shadow: 0 4px 0 rgba(87, 57, 30, .55); font-weight: 700; font-size: 13px; }
 #hookBtn svg { width: 42px; height: 42px; } #hookBtn.on { background: #dda675; transform: translateY(3px); box-shadow: 0 1px 0 rgba(87, 57, 30, .55); }
 .pump { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; color: #fff6e6; background: rgba(42, 31, 22, .38); border: 2px solid rgba(255, 246, 230, .55); }
@@ -111,4 +109,10 @@ body.touch .keys td:nth-child(2), body:not(.touch) .keys td:nth-child(3) { displ
 #reticle i { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: #fff6e6; box-shadow: 0 0 0 1px rgba(42, 31, 22, .6); }
 #reticle.hot { border-color: #ffd36a; transform: scale(1.25); }
 #reticle.apex { border-color: #fff; transform: scale(1.5); }
-@media (max-height: 520px) { #hookBtn { width: 84px; height: 84px; } #touch .pump[data-k="1"] { left: 94px; } }
+@media (max-height: 520px) { #hookBtn { width: 84px; height: 84px; } }
+
+#stick { position: absolute; left: 16px; bottom: calc(var(--bot) + 16px); width: 132px; height: 132px; border-radius: 50%; pointer-events: auto; background: rgba(42, 31, 22, .3); border: 2px solid rgba(255, 246, 230, .55); touch-action: none; }
+#stick i { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(239, 226, 198, .9); box-shadow: 0 2px 0 rgba(87, 57, 30, .5); }
+#jumpBtn { position: absolute; right: 128px; bottom: calc(var(--bot) + 22px); width: 64px; height: 64px; border-radius: 50%; pointer-events: auto; display: grid; place-items: center; color: #fff6e6; background: rgba(42, 31, 22, .38); border: 2px solid rgba(255, 246, 230, .55); }
+#jumpBtn svg { width: 30px; height: 30px; } #jumpBtn.on { background: rgba(221, 166, 117, .85); color: var(--ink); }
+@media (max-height: 520px) { #stick { width: 112px; height: 112px; } #jumpBtn { right: 108px; } }

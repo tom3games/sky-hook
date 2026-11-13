@@ -1,7 +1,7 @@
 // 登る人。Quaternius の人物（CC0）を骨の IK で手続きに動かす（アニメのクリップは使わない）
 import * as THREE from 'three'
 import { GLTFLoader } from '../vendor/jsm/loaders/GLTFLoader.js'
-import { to3, frame } from './view.js?v=4'
+import { to3, frame } from './view.js?v=5'
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z)
 const _a = V(), _b = V(), _c = V()
@@ -107,18 +107,25 @@ export class Climber {
     // 立っている時は足を地面に（物理の点は体の中心の低い所。ぶら下がる時は胸）
     const lift = p.ground && !anc ? 0.97 : 0
     this.lift = (this.lift ?? lift) + (lift - (this.lift ?? lift)) * Math.min(1, dt * 14)
-    const pos = to3(p.x, p.y + this.lift, 0)
+    const pos = to3(p.x, p.y + this.lift, p.z || 0)
     this.root.position.copy(pos)
     const { n, t } = frame(p.x)
     // 体の上の向き: ワイヤーの向き → 無ければ速さで少し傾ける
     let up
-    if (anc) { const a3 = to3(anc.x, anc.y, 0); up = a3.sub(pos).normalize() }
+    if (anc) { const a3 = to3(anc.x, anc.y, anc.z || 0); up = a3.sub(pos).normalize() }
     else if (p.ground) up = V(0, 1, 0)
     else { up = V(0, 1, 0).addScaledVector(t, -p.vx * 0.02).normalize() }
     this.up.lerp(up, 1 - Math.exp(-dt * (anc ? 30 : 8))).normalize()
     const u = this.up
     // 正面は壁（-n）。上の向きと直交させる
-    const f = n.clone().negate(); f.addScaledVector(u, -f.dot(u)).normalize()
+    // 正面: 走っている時は進む向き、それ以外は壁（-n）
+    const hv = Math.hypot(p.vx, p.vz || 0)
+    let f
+    if (!anc && hv > 0.8) { f = t.clone().multiplyScalar(p.vx).addScaledVector(n, p.vz || 0).normalize(); this.face3 = f.clone() }
+    else if (!anc && this.face3) f = this.face3.clone()
+    else f = n.clone().negate()
+    if (anc) this.face3 = null
+    f.addScaledVector(u, -f.dot(u)).normalize()
     // 進む向きへ少しだけ体をひねる
     const side = Math.max(-0.5, Math.min(0.5, p.vx * 0.05)) * (p.face || 1)
     const fw = f.clone().applyAxisAngle(u, side * 0.6)
@@ -135,7 +142,7 @@ export class Climber {
     const sp = Math.hypot(p.vx, p.vy)
     if (anc || (aimAt && !p.ground)) {
       // ぶら下がり: 両手でワイヤーをつかむ。体は少し反り、脚は振れと逆へ流れる
-      const grip = anc ? this.hand.clone() : pos.clone().add(to3(aimAt.x, aimAt.y, 0).sub(pos).normalize().multiplyScalar(0.95))
+      const grip = anc ? this.hand.clone() : pos.clone().add(to3(aimAt.x, aimAt.y, aimAt.z || 0).sub(pos).normalize().multiplyScalar(0.95))
       if (!anc) this.hand.copy(grip)
       const rr = r
       ik2(B['UpperArm.L'], B['LowerArm.L'], B['Wrist.L'], grip.clone().addScaledVector(rr, 0.05).addScaledVector(u, 0.06), grip.clone().addScaledVector(rr, 0.6).addScaledVector(fw, -0.4))

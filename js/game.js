@@ -6,10 +6,10 @@ import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js
 import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js'
 import { ShaderPass } from '../vendor/jsm/postprocessing/ShaderPass.js'
 import { GTAOPass } from '../vendor/jsm/postprocessing/GTAOPass.js'
-import { makeCourse, TOWER_R } from './course.js?v=4'
-import { PH, buildWorld, newState, step, grabbable, anchorPos, swingInfo, respawn } from './physics.js?v=4'
-import { View, to3, frame, setAniso, WALL_R } from './view.js?v=4'
-import { Climber } from './climber.js?v=4'
+import { makeCourse, TOWER_R } from './course.js?v=5'
+import { PH, buildWorld, newState, step, grabbable, anchorPos, swingInfo, respawn, solidAt } from './physics.js?v=5'
+import { View, to3, frame, setAniso, WALL_R } from './view.js?v=5'
+import { Climber } from './climber.js?v=5'
 
 window.__jsUp = true
 const $ = id => document.getElementById(id)
@@ -22,22 +22,22 @@ const TXT = {
   ja: {
     loading: '塔へ向かう', kicker: '雲の上まで、振り子で。', logo_sub: '砂の塔を、短いワイヤーで登る', start: '登る', cont: '旗から続ける', how: '遊び方', sound_on: '音 あり', sound_off: '音 なし',
     how_lead: 'ワイヤーは短く、巻き取れない。掛ける輪を自分で選び、左右にこいで振れを大きくし、振れの頂点の手前で離して、上の輪へ跳び移る。',
-    k_hook: '掛ける', k_hook_pc: '照準を輪に合わせてクリックしたまま', k_hook_sp: '輪を押したまま／右下のボタンを押したまま', k_rel: '離す', k_rel_pc: 'ボタンを離す', k_rel_sp: '指を離す', k_pump: 'こぐ', k_pump_sp: '左下のボタン', k_look: '見回す・狙う', k_look_pc: 'マウスを動かす（クリックで固定・Esc で解除）', k_look_sp: '何もない所をなぞる', k_cp: '旗へ戻る', k_cp_sp: '右上の矢印',
-    tip1: '届く輪は金色に光る。光っていない輪は、どこかから振れば届く。', tip2: '振れている向きと同じ側を押すと、振れが大きくなる。', tip3: '飛んでいる間に輪を押しておくと、届いた瞬間に掛かる。遠くで掛けるほどワイヤーは長くなる。振れの頂点の手前で風の音が変わったら、離しどき。', tip4: 'ひびの入った台座は掛けると崩れる。錆びた輪は一度離すと折れる。',
+    k_hook: '掛ける', k_hook_pc: '照準を輪に合わせてクリックしたまま', k_hook_sp: '輪を押したまま／右下のボタンを押したまま', k_rel: '離す', k_rel_pc: 'ボタンを離す', k_rel_sp: '指を離す', k_pump: '走る・こぐ（前後左右）', k_pump_sp: '左下のスティック', k_jump: '跳ぶ', k_jump_sp: '右下の小さいボタン', k_look: '見回す・狙う', k_look_pc: 'マウスを動かす（クリックで固定・Esc で解除）', k_look_sp: '何もない所をなぞる', k_cp: '旗へ戻る', k_cp_sp: '右上の矢印',
+    tip1: '届く輪は金色に光る。光っていない輪は、どこかから振れば届く。', tip2: '振れている向きと同じ側を押すと振れが大きくなる。横に入れると振れの面がねじれて回る。離した時は、その時の振れの向きへ飛ぶ。', tip3: '飛んでいる間に輪を押しておくと、届いた瞬間に掛かる。遠くで掛けるほどワイヤーは長くなる。振れの頂点の手前で風の音が変わったら、離しどき。', tip4: 'ひびの入った台座は掛けると崩れる。錆びた輪は一度離すと折れる。',
     credit: '素材: Quaternius・Poly Haven・Kenney・rubberduck・artisticdude ほか（CC0）',
     falls: '落下', arrived: '頂上', time: '時間', best: '自己ベスト', retry: 'もう一回', share: 'Xでポスト', menu: 'メニュー', paused: '一時停止', resume: '続ける', tocp: '旗へ戻る', back: 'もどる',
-    t_walk0_pc: 'D か → で右へ。光る輪に近づく', t_walk0_sp: '右のボタンで歩いて、光る輪に近づく', t_grab_pc: '照準を光る輪に合わせて、クリックしたまま', t_grab_sp: '光る輪を押したまま（右下のボタンでも）', t_walk: 'そのまま右へ。崖から振り出す', t_pump_pc: 'A D でこいで振れを大きく', t_pump_sp: '左下のボタンでこいで振れを大きく', t_rel: '振れの上で離して、次の輪へ', t_next: '飛びながら次の輪を押す',
+    t_walk0_pc: 'WASD で走って、光る輪に近づく', t_walk0_sp: '左下のスティックで走って、光る輪に近づく', t_grab_pc: '照準を光る輪に合わせて、クリックしたまま', t_grab_sp: '光る輪を押したまま（右下のボタンでも）', t_walk: 'そのまま崖から振り出す', t_pump_pc: 'WASD の振りたい向きでこぐ', t_pump_sp: 'スティックの振りたい向きでこぐ', t_rel: '振れの上で離して、次の輪へ', t_next: '飛びながら次の輪を押す',
     saved: '旗', top: '頂上', fellback: '旗へ戻った', sec: { base: '基部', crumble: '崩れ回廊', wind: '風の段', bell: '鐘楼', mill: '風車の層', shaft: '鉄球の縦穴', sand: '砂の滝', crown: '頂の門' },
     best_fmt: b => '自己ベスト ' + b, share_txt: (t, f) => `SKY HOOK 頂上まで ${t}（落下 ${f}回）`,
   },
   en: {
     loading: 'Heading to the tower', kicker: 'Above the clouds, one swing at a time.', logo_sub: 'Climb a sandstone tower on a short wire', start: 'Climb', cont: 'Continue from flag', how: 'How to play', sound_on: 'Sound on', sound_off: 'Sound off',
     how_lead: 'Your wire is short and cannot reel in. Pick a ring, pump left and right to build the swing, let go just before the top of the arc and fly to the next ring.',
-    k_hook: 'Hook', k_hook_pc: 'Aim at a ring, hold the mouse button', k_hook_sp: 'Hold a ring, or hold the hook button', k_rel: 'Let go', k_rel_pc: 'Release the button', k_rel_sp: 'Lift your finger', k_pump: 'Pump', k_pump_sp: 'Buttons bottom left', k_look: 'Look / aim', k_look_pc: 'Move the mouse (click to lock, Esc to release)', k_look_sp: 'Drag empty space', k_cp: 'Back to flag', k_cp_sp: 'Arrow top right',
-    tip1: 'Rings in reach glow gold. A dark ring can be reached if you swing from the right place.', tip2: 'Push the same way you are swinging to swing higher.', tip3: 'Hold a ring while flying and you hook the moment it is in reach. Hooking from farther gives a longer wire.', tip4: 'Cracked mounts crumble when hooked. Rusty rings snap after one use.',
+    k_hook: 'Hook', k_hook_pc: 'Aim at a ring, hold the mouse button', k_hook_sp: 'Hold a ring, or hold the hook button', k_rel: 'Let go', k_rel_pc: 'Release the button', k_rel_sp: 'Lift your finger', k_pump: 'Run / pump (any direction)', k_pump_sp: 'Stick bottom left', k_jump: 'Jump', k_jump_sp: 'Small button bottom right', k_look: 'Look / aim', k_look_pc: 'Move the mouse (click to lock, Esc to release)', k_look_sp: 'Drag empty space', k_cp: 'Back to flag', k_cp_sp: 'Arrow top right',
+    tip1: 'Rings in reach glow gold. A dark ring can be reached if you swing from the right place.', tip2: 'Push the way you are swinging to swing higher. Push sideways to twist the swing into a circle. You fly the way you were swinging.', tip3: 'Hold a ring while flying and you hook the moment it is in reach. Hooking from farther gives a longer wire.', tip4: 'Cracked mounts crumble when hooked. Rusty rings snap after one use.',
     credit: 'Assets: Quaternius, Poly Haven, Kenney, rubberduck, artisticdude and others (CC0)',
     falls: 'Falls', arrived: 'Summit', time: 'Time', best: 'Best', retry: 'Again', share: 'Post on X', menu: 'Menu', paused: 'Paused', resume: 'Resume', tocp: 'Back to flag', back: 'Back',
-    t_walk0_pc: 'Walk right with D or the arrow key', t_walk0_sp: 'Walk right toward a glowing ring', t_grab_pc: 'Aim at a glowing ring and hold the mouse button', t_grab_sp: 'Hold a glowing ring (or the hook button)', t_walk: 'Keep going right. Swing off the edge', t_pump_pc: 'Pump with A / D', t_pump_sp: 'Pump with the buttons bottom left', t_rel: 'Let go near the top of the swing', t_next: 'Hold the next ring while flying',
+    t_walk0_pc: 'Run with WASD toward a glowing ring', t_walk0_sp: 'Run with the stick toward a glowing ring', t_grab_pc: 'Aim at a glowing ring and hold the mouse button', t_grab_sp: 'Hold a glowing ring (or the hook button)', t_walk: 'Swing off the edge', t_pump_pc: 'Pump with WASD in the direction you want to swing', t_pump_sp: 'Pump with the stick in the direction you want to swing', t_rel: 'Let go near the top of the swing', t_next: 'Hold the next ring while flying',
     saved: 'Flag', top: 'Summit', fellback: 'Back to the flag', sec: { base: 'The Footing', crumble: 'Crumbling Gallery', wind: 'Wind Ledges', bell: 'Belfry', mill: 'Windmill Tier', shaft: 'Wrecking Shaft', sand: 'Sandfall', crown: 'Crown Gate' },
     best_fmt: b => 'Best ' + b, share_txt: (t, f) => `SKY HOOK summit in ${t} (${f} falls)`,
   },
@@ -154,13 +154,14 @@ function startAudio() {
   if (Snd.ctx && !Snd.loops.wind) { Snd.loop('wind', 'snd/wind_loop.wav', 0.0001, 0.3); Snd.loop('amb', 'snd/wind.mp3', 0.12, 1.2); Snd.loop('birds', 'snd/birds.mp3', 0.05, 2) }
 }
 
-// ------------------------------------------------------------ 入力（肩越し: 画面中央の照準で輪を狙う）
+// ------------------------------------------------------------ 入力（肩越し: 画面中央の照準で輪を狙う。WASD で前後左右）
 const keys = new Set()
-const inp = { hook: false, target: -1, pump: 0 }
+const inp = { hook: false, target: -1, mx: 0, mz: 0, jump: false }
 let hover = -1          // 照準が重なっている輪
-let touchPump = 0
+const stick = { x: 0, y: 0, id: null }   // スマホの左下の固定スティック（x 右, y 前）
+let jumpBtn = false
 const pointers = new Map()      // id -> {kind:'hook'|'look', x, y}
-const look = { yaw: 0, pitch: 0.42, t: -1e9 }   // yaw + で右（周の +x）、pitch + で上
+const look = { yaw: 0, pitch: 0.42, t: -1e9 }   // yaw + で右（周の +x）、pitch + で上。0 で壁へ向く
 let mode = 'loading', paused = false
 let locked = false
 
@@ -168,15 +169,16 @@ addEventListener('keydown', e => {
   if (e.repeat) return
   keys.add(e.code)
   if (mode !== 'play') return
+  if (e.code === 'Space') e.preventDefault()
   if (e.code === 'Escape' || e.code === 'KeyP') setPause(!paused)
   if (e.code === 'KeyR' && !paused) toFlag()
-  if (e.code === 'Space') { e.preventDefault(); pointers.set('key', { kind: 'hook' }); inp.hook = true; inp.target = hover }
+  if (e.code === 'KeyE') { pointers.set('key', { kind: 'hook' }); inp.hook = true; inp.target = hover }
 })
 addEventListener('keyup', e => {
   keys.delete(e.code)
-  if (e.code === 'Space' && pointers.get('key')) { pointers.delete('key'); releaseHookIfNone() }
+  if (e.code === 'KeyE' && pointers.get('key')) { pointers.delete('key'); releaseHookIfNone() }
 })
-const _v = new THREE.Vector3(), _q = { x: 0, y: 0 }, _d = new THREE.Vector3()
+const _v = new THREE.Vector3(), _q = { x: 0, y: 0, z: 0 }, _d = new THREE.Vector3()
 function usableA(a) { const st = S.an[a.i]; return !((a.kind === 'rusty' && st.used) || st.back > 0 || st.fallT > 0 || (a.hidden && S.bell[a.hidden.g] == null)) }
 // 照準（カメラの視線）に一番近い輪。視線そのもので取るので、肩越しの視差でずれない。
 // 判定は輪の周り 0.75m か 2.6 度の広い方。吸い付き（照準を動かす）はしない
@@ -186,7 +188,7 @@ export function aimPick(dir, origin) {
   const gset = new Set(grabbable(W, S))
   for (const a of W.anchors) {
     if (Math.abs(a.y - S.p.y) > 40 || !usableA(a)) continue
-    anchorPos(W, S, a, _q); to3(_q.x, _q.y, 0, _v)
+    anchorPos(W, S, a, _q); to3(_q.x, _q.y, _q.z, _v)
     _d.copy(_v).sub(o); const dist = _d.length(); if (dist < 0.5) continue
     _d.divideScalar(dist)
     const ang = Math.acos(Math.max(-1, Math.min(1, _d.dot(dir))))
@@ -204,12 +206,11 @@ export function pickAt(cx, cy) {
   const rc = renderer.domElement.getBoundingClientRect()
   _ndc.set((cx - rc.left) / rc.width * 2 - 1, -((cy - rc.top) / rc.height) * 2 + 1)
   _ray.setFromCamera(_ndc, camera)
-  // 指は照準より太いので、判定を少し広げる
   let best = -1, bs = 1e9
   const gset = new Set(grabbable(W, S))
   for (const a of W.anchors) {
     if (Math.abs(a.y - S.p.y) > 40 || !usableA(a)) continue
-    anchorPos(W, S, a, _q); to3(_q.x, _q.y, 0, _v)
+    anchorPos(W, S, a, _q); to3(_q.x, _q.y, _q.z, _v)
     _d.copy(_v).sub(_ray.ray.origin); const dist = _d.length(); _d.divideScalar(dist)
     const ang = Math.acos(Math.max(-1, Math.min(1, _d.dot(_ray.ray.direction))))
     const tol = Math.max(5 * Math.PI / 180, Math.atan(1.1 / dist))
@@ -225,10 +226,9 @@ function releaseHookIfNone() {
 }
 const cv = renderer.domElement
 const SENS_M = 0.0024, SENS_T = 0.0062
-function turn(dx, dy, k) { look.yaw = Math.max(-1.25, Math.min(1.25, look.yaw + dx * k)); look.pitch = Math.max(-0.7, Math.min(1.25, look.pitch - dy * k)); look.t = performance.now() }
+function turn(dx, dy, k) { look.yaw = Math.atan2(Math.sin(look.yaw + dx * k), Math.cos(look.yaw + dx * k)); look.pitch = Math.max(-0.7, Math.min(1.25, look.pitch - dy * k)); look.t = performance.now() }
 document.addEventListener('pointerlockchange', () => {
   const was = locked; locked = document.pointerLockElement === cv
-  // Esc で固定が外れたら一時停止（ボタンを押せるように）
   if (was && !locked && mode === 'play' && !paused) setPause(true)
 })
 function unlock() { try { if (document.pointerLockElement) document.exitPointerLock() } catch (e) {} }
@@ -243,7 +243,6 @@ cv.addEventListener('pointerdown', e => {
     pointers.set(e.pointerId, { kind: 'hook' }); inp.hook = true; inp.target = hover; tutHooked = true
     return
   }
-  // 指: 輪を直接押したら掛ける。それ以外はなぞって見回す
   const i = pickAt(e.clientX, e.clientY)
   if (i >= 0) { pointers.set(e.pointerId, { kind: 'hook', x: e.clientX, y: e.clientY }); inp.hook = true; inp.target = i; tutHooked = true }
   else pointers.set(e.pointerId, { kind: 'look', x: e.clientX, y: e.clientY })
@@ -258,11 +257,25 @@ addEventListener('pointermove', e => {
 })
 const endPtr = e => { if (!pointers.has(e.pointerId)) return; pointers.delete(e.pointerId); releaseHookIfNone() }
 addEventListener('pointerup', endPtr); addEventListener('pointercancel', endPtr)
-for (const b of document.querySelectorAll('.pump')) {
-  const k = +b.dataset.k
-  b.addEventListener('pointerdown', e => { e.preventDefault(); startAudio(); touchPump = k; b.classList.add('on'); try { b.setPointerCapture(e.pointerId) } catch (er) {} })
-  const up = () => { if (touchPump === k) touchPump = 0; b.classList.remove('on') }
-  b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('lostpointercapture', up)
+// 左下の固定スティック（触った所に動かない）
+{
+  const el = $('stick'), knob = el.querySelector('i')
+  const upd = e => {
+    const r = el.getBoundingClientRect(), R0 = r.width / 2
+    let dx = (e.clientX - r.left - R0) / R0, dy = (e.clientY - r.top - R0) / R0
+    const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l }
+    stick.x = dx; stick.y = -dy; knob.style.transform = `translate(${dx * 34}px,${dy * 34}px)`
+  }
+  el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); startAudio(); stick.id = e.pointerId; try { el.setPointerCapture(e.pointerId) } catch (er) {} upd(e) })
+  el.addEventListener('pointermove', e => { if (e.pointerId === stick.id) upd(e) })
+  const end = e => { if (e.pointerId !== stick.id) return; stick.id = null; stick.x = stick.y = 0; knob.style.transform = '' }
+  el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end)
+}
+{
+  const b = $('jumpBtn')
+  b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); startAudio(); jumpBtn = true; b.classList.add('on') })
+  const up = () => { jumpBtn = false; b.classList.remove('on') }
+  b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up)
 }
 // スマホの「掛ける」ボタン: 押している間、照準の輪に掛かる（押した後に照準へ入った輪にも掛かる）
 {
@@ -271,63 +284,92 @@ for (const b of document.querySelectorAll('.pump')) {
   const up = e => { pointers.delete('btn' + e.pointerId); b.classList.remove('on'); releaseHookIfNone() }
   b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up)
 }
-function gatherPump() {
-  let u = touchPump
-  if (keys.has('KeyA') || keys.has('ArrowLeft')) u -= 1
-  if (keys.has('KeyD') || keys.has('ArrowRight')) u += 1
-  return Math.max(-1, Math.min(1, u))
+// 移動・こぐ向き（カメラ基準）→ 塔を開いた空間の (mx, mz)
+function gatherMove() {
+  let fwd = stick.y, side = stick.x
+  if (keys.has('KeyW') || keys.has('ArrowUp')) fwd += 1
+  if (keys.has('KeyS') || keys.has('ArrowDown')) fwd -= 1
+  if (keys.has('KeyA') || keys.has('ArrowLeft')) side -= 1
+  if (keys.has('KeyD') || keys.has('ArrowRight')) side += 1
+  const sy = Math.sin(look.yaw), cy = Math.cos(look.yaw)
+  // 前 = (sin yaw, -cos yaw)、右 = (cos yaw, sin yaw)
+  let mx = sy * fwd + cy * side, mz = -cy * fwd + sy * side
+  const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l }
+  return { mx, mz, jump: keys.has('Space') || jumpBtn }
 }
 
 // ------------------------------------------------------------ カメラ（右肩の少し後ろ・上）
-// 振っている間は少し引いて、ワイヤー・掛け点・体が入るようにする。振れに合わせて大きく揺らさない
-const cam = { x: 0, y: 0, pull: 0, pos: new THREE.Vector3(), fovK: 0, tilt: 0 }
-const _n = new THREE.Vector3(), _t = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _r = new THREE.Vector3(), _fw = new THREE.Vector3(), _p3 = new THREE.Vector3()
-function lookDir(out) {
-  const fr = frame(cam.x)
+// 塔を開いた空間でカメラを置き、箱に当たる手前まで寄せてから円柱へ巻く（壁や柱にめり込まない）
+const cam = { x: 0, y: 0, z: 0, pull: 0, pos: new THREE.Vector3(), fovK: 0, tilt: 0, L: { x: 0, y: 0, z: 0 } }
+const _up = new THREE.Vector3(0, 1, 0), _p3 = new THREE.Vector3(), _t3 = new THREE.Vector3()
+function localLook() {
   const cy = Math.cos(look.yaw), sy = Math.sin(look.yaw), cp = Math.cos(look.pitch), sp = Math.sin(look.pitch)
-  return out.copy(fr.n).multiplyScalar(-cy * cp).addScaledVector(fr.t, sy * cp).addScaledVector(_up, sp).normalize()
+  return { fx: sy * cp, fy: sp, fz: -cy * cp, rx: cy, rz: sy }
+}
+function camHit(a, b) {
+  // a→b の線分が箱に当たる一番手前の割合
+  let tMin = 1
+  const y0 = Math.min(a.y, b.y) - 1, y1 = Math.max(a.y, b.y) + 1
+  for (const b0 of W.solids) {
+    if (b0.y1 < y0 || b0.y0 > y1) continue
+    const B = solidAt(W, S, b0), pad = 0.25
+    let t0 = 0, t1 = 1, ok = true
+    for (const [o, d, lo, hi] of [[a.x, b.x - a.x, B.x0 - pad, B.x1 + pad], [a.y, b.y - a.y, B.y0 - pad, B.y1 + pad], [a.z, b.z - a.z, B.z0 - pad, B.z1 + pad]]) {
+      if (Math.abs(d) < 1e-9) { if (o < lo || o > hi) { ok = false; break } continue }
+      let ta = (lo - o) / d, tb = (hi - o) / d; if (ta > tb) { const q = ta; ta = tb; tb = q }
+      t0 = Math.max(t0, ta); t1 = Math.min(t1, tb); if (t0 > t1) { ok = false; break }
+    }
+    if (ok && t0 > 0.02 && t0 < tMin) tMin = t0
+  }
+  return tMin
 }
 function updateCamera(dt, snap) {
   const p = S.p
   const k = snap ? 1 : 1 - Math.exp(-dt * 10)
-  cam.x += (p.x - cam.x) * k; cam.y += (p.y + (S.p.ground && !S.rope ? 0.9 : 0.4) - cam.y) * k
-  // 振っている間は引く
+  cam.x += (p.x - cam.x) * k; cam.z += (p.z - cam.z) * k; cam.y += (p.y + (S.p.ground && !S.rope ? 0.9 : 0.4) - cam.y) * k
   const pullT = S.rope ? 2.6 : (p.ground ? 0 : 1.2)
   cam.pull += (pullT - cam.pull) * (snap ? 1 : 1 - Math.exp(-dt * 2.2))
-  // 掛けている間、しばらく見回していなければ、掛け点と体の間へ少しだけ向ける（弱く）
+  // 振っている間、しばらく見回していなければ、振れの面を横から見る向きへごく弱く寄せる（揺らしすぎない）
   if (S.rope && performance.now() - look.t > 1400) {
-    const q = anchorPos(W, S, W.anchors[S.rope.i], { x: 0, y: 0 })
-    const fr = frame(cam.x)
-    to3((q.x + p.x) / 2, (q.y + p.y) / 2 + 1, 0, _p3)
-    _d.copy(_p3).sub(to3(p.x, p.y, 4 + cam.pull)).normalize()
-    const wantYaw = Math.atan2(_d.dot(fr.t), -_d.dot(fr.n)), wantPitch = Math.asin(Math.max(-1, Math.min(1, _d.y)))
-    const kk = 1 - Math.exp(-dt * 0.8)
-    look.yaw += (Math.max(-1, Math.min(1, wantYaw)) - look.yaw) * kk; look.pitch += (Math.max(-0.3, Math.min(1.1, wantPitch)) - look.pitch) * kk
+    const q = anchorPos(W, S, W.anchors[S.rope.i], { x: 0, y: 0, z: 0 })
+    const vh = Math.hypot(p.vx, p.vz)
+    let wantYaw = look.yaw
+    if (vh > 2) {
+      // 振れの向き (vx,vz) に直角で、壁の側を向く向き
+      let fx = -p.vz / vh, fz = p.vx / vh; if (fz > 0) { fx = -fx; fz = -fz }
+      wantYaw = Math.atan2(fx, -fz)
+    }
+    const dy = (q.y + p.y) / 2 + 1 - (p.y + 1.5), wantPitch = Math.max(-0.3, Math.min(1.0, Math.atan2(dy, 5 + cam.pull)))
+    const kk = 1 - Math.exp(-dt * 0.7)
+    let dyaw = wantYaw - look.yaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw))
+    look.yaw += dyaw * kk; look.pitch += (wantPitch - look.pitch) * kk
   }
-  lookDir(_fw)
-  _r.crossVectors(_fw, _up).normalize()
+  const L = localLook()
   const portrait = camera.aspect < 1
   const D = (DBG.camD || (portrait ? 6.2 : 3.8)) + cam.pull
-  to3(cam.x, cam.y, 0, _p3)
-  cam.pos.copy(_p3).addScaledVector(_r, portrait ? 0.45 : 0.8).addScaledVector(_up, 0.55).addScaledVector(_fw, -D)
-  // カメラの当たり: 塔の柱や棚の前面より外（遊ぶ面から 1.3m）に保つ（壁にめり込まない）
-  const rr = Math.hypot(cam.pos.x, cam.pos.z), minR = TOWER_R + 1.3
-  if (rr < minR) { cam.pos.x *= minR / rr; cam.pos.z *= minR / rr }
+  const sh = portrait ? 0.45 : 0.8
+  const piv = { x: cam.x + L.rx * sh, y: cam.y + 0.55, z: cam.z + L.rz * sh }
+  const want = { x: piv.x - L.fx * D, y: piv.y - L.fy * D, z: piv.z - L.fz * D }
+  const th = camHit({ x: cam.x, y: cam.y, z: cam.z }, want)
+  const c = { x: cam.x + (want.x - cam.x) * th * 0.92, y: cam.y + (want.y - cam.y) * th * 0.92, z: Math.max(PH.wallZ + 0.3, cam.z + (want.z - cam.z) * th * 0.92) }
+  cam.L = c
+  to3(c.x, c.y, c.z, cam.pos)
   camera.position.copy(cam.pos)
   camera.up.set(0, 1, 0)
-  camera.lookAt(_p3.copy(cam.pos).add(_fw))
-  const sp = Math.hypot(p.vx, p.vy)
-  const tilt = S.rope ? Math.max(-0.035, Math.min(0.035, -p.vx * 0.003)) : 0
+  // 向きはカメラの位置の接平面で（開いた空間の向き → 世界の向き）。照準の光線もこの向き
+  const fr = frame(c.x)
+  _t3.copy(fr.t).multiplyScalar(L.fx).addScaledVector(_up, L.fy).addScaledVector(fr.n, L.fz).add(cam.pos)
+  camera.lookAt(_t3)
+  const sp = Math.hypot(p.vx, p.vy, p.vz)
+  const tilt = S.rope ? Math.max(-0.035, Math.min(0.035, -(p.vx * L.rx + p.vz * L.rz) * 0.003)) : 0
   cam.tilt += (tilt - cam.tilt) * (1 - Math.exp(-dt * 2))
   camera.rotateZ(cam.tilt)
   const fovT = (portrait ? 82 : 64) + Math.min(10, Math.max(0, sp - 8) * 0.7) + cam.fovK
   cam.fovK *= Math.exp(-dt * 5)
   if (Math.abs(camera.fov - fovT) > 0.05) { camera.fov += (fovT - camera.fov) * (1 - Math.exp(-dt * 4)); camera.updateProjectionMatrix() }
   placeSun(p.x, p.y)
-  // 照準の輪（毎コマ）
   camera.updateMatrixWorld()
   hover = mode === 'play' ? aimPick(centerDir()) : -1
-  // 押したまま照準を輪に入れたら、その輪を狙う
   if (inp.hook && inp.target < 0 && !S.rope) inp.target = hover
 }
 
@@ -390,7 +432,7 @@ function onRespawn() { pointers.clear(); inp.hook = false; inp.target = -1; flas
 function faceFlagRing() {
   if (S.cp < 0) { look.yaw = 0.3; look.pitch = 0.42; return }
   const a = W.anchors[W.flags[S.cp].a]
-  look.yaw = Math.max(-1, Math.min(1, Math.atan2(a.x - S.p.x, 7))); look.pitch = 0.5
+  look.yaw = Math.atan2(a.x - S.p.x, 7 - ((a.z || 0) - S.p.z)); look.pitch = 0.5
 }
 function startGame(fromCp) {
   S = newState(W)
@@ -465,12 +507,12 @@ function frameLoop(now) {
     if (hitStop > 0) { hitStop -= dt; dt *= 0.15 }
     // 振れの頂点の手前: 少しだけ遅くし、きしむ音で「今離すと高く飛ぶ」を伝える
     const si = S.rope ? swingInfo(W, S) : null
-    const nearApex = si && si.thMax > 0.85 && Math.abs(si.th) > si.thMax - 0.22 && S.p.vx * si.th > 0
+    const nearApex = si && si.thMax > 0.85 && si.th > si.thMax - 0.22 && si.out
     if (nearApex) { dt *= 0.82; if (performance.now() - apexT > 700) { apexT = performance.now(); Snd.play('creak', { vol: 0.35 }); $('reticle').classList.add('apex'); setTimeout(() => $('reticle').classList.remove('apex'), 260) } }
     acc += dt
     while (acc >= PH.dt) {
       acc -= PH.dt
-      inp.pump = DBG.bot ? DBG.bot.pump : gatherPump()
+      Object.assign(inp, DBG.bot ? { mx: DBG.bot.mx || 0, mz: DBG.bot.mz || 0, jump: !!DBG.bot.jump } : gatherMove())
       if (DBG.bot) { inp.hook = DBG.bot.hook; inp.target = DBG.bot.target }
       step(W, S, inp)
       events()
@@ -519,11 +561,11 @@ const DBG = { frozen: false, bot: null, onStep: null }
 window.hook = {
   W, get S() { return S }, set S(v) { S = v }, PH, DBG, camera, pickAt, aimPick, climber, look, get hover() { return hover },
   // 照準を i 番の輪へ向ける（検査用）。カメラの位置は向きで変わるので数回まわして合わせる
-  aimAt(i) { for (let k = 0; k < 6; k++) { updateCamera(0, true); anchorPos(W, S, W.anchors[i], _q); to3(_q.x, _q.y, 0, _v); const fr = frame(cam.x); _d.copy(_v).sub(camera.position).normalize(); look.yaw = Math.atan2(_d.dot(fr.t), -_d.dot(fr.n)); look.pitch = Math.asin(_d.y) } look.t = performance.now(); updateCamera(0, true); return hover },
-  anchorXY(i) { anchorPos(W, S, W.anchors[i], _q); to3(_q.x, _q.y, 0, _v); _v.project(camera); const rc = renderer.domElement.getBoundingClientRect(); return { x: rc.left + (_v.x + 1) / 2 * rc.width, y: rc.top + (1 - _v.y) / 2 * rc.height } },
+  aimAt(i) { for (let k = 0; k < 8; k++) { updateCamera(0, true); anchorPos(W, S, W.anchors[i], _q); to3(_q.x, _q.y, _q.z, _v); const fr = frame(cam.L.x); _d.copy(_v).sub(camera.position).normalize(); const fx = _d.dot(fr.t), fz = _d.dot(fr.n); look.yaw = Math.atan2(fx, -fz); look.pitch = Math.asin(Math.max(-1, Math.min(1, _d.y))) } look.t = performance.now(); updateCamera(0, true); return hover },
+  anchorXY(i) { anchorPos(W, S, W.anchors[i], _q); to3(_q.x, _q.y, _q.z, _v); _v.project(camera); const rc = renderer.domElement.getBoundingClientRect(); return { x: rc.left + (_v.x + 1) / 2 * rc.width, y: rc.top + (1 - _v.y) / 2 * rc.height } },
   start: (cp) => startGame(cp), get mode() { return mode }, grabbable: () => grabbable(W, S),
-  place(x, y) { S.p.x = x; S.p.y = y; S.p.vx = S.p.vy = 0; S.rope = null; updateCamera(0, true) },
-  warpFlag(i) { const f = W.flags[i]; S.cp = i; S.cpX = f.x; S.cpY = f.y + 0.6; respawn(W, S, false); faceFlagRing(); updateCamera(0, true) },
+  place(x, y, z = 0) { S.p.x = x; S.p.y = y; S.p.z = z; S.p.vx = S.p.vy = S.p.vz = 0; S.rope = null; updateCamera(0, true) },
+  warpFlag(i) { const f = W.flags[i]; S.cp = i; S.cpX = f.x; S.cpY = f.y + 0.6; S.cpZ = f.z || 0; respawn(W, S, false); faceFlagRing(); updateCamera(0, true) },
   frame(n = 1, input) { for (let k = 0; k < n; k++) { step(W, S, input || inp); events() } updateCamera(0, true) },
 }
 

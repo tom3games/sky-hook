@@ -5,7 +5,7 @@
 //    離してから 0.22〜0.34 秒たってから次の輪を押す。落ちたら旗からやり直す（最大 4 回）
 import { makeCourse } from '../js/course.js'
 import { buildWorld, newState, step, anchorPos, cloneState } from '../js/physics.js'
-import { exploreAll, expandHang, expandStand, robustWindows, HUMAN, pathTo } from '../js/explore.js'
+import { exploreAll, expandHang, expandStand, robustWindows, HUMAN, pathTo, decodeRel, dirOf, pumpInput } from '../js/explore.js'
 const W = buildWorld(makeCourse())
 const seed = +(process.argv[2] || 1)
 const secs = process.argv.slice(3).map(Number)
@@ -15,7 +15,7 @@ const rnd = () => { rs = (rs * 9301 + 49297) % 233280; return rs / 233280 }
 function startState(k) {
   if (k < 0) { const S = newState(W); for (let f = 0; f < 20; f++) step(W, S, {}); return S }
   const f = W.flags[k]
-  const S = newState(W, { x: f.x, y: f.y + 0.4 }); S.cp = k; S.cpX = f.x; S.cpY = f.y + 0.4
+  const S = newState(W, { x: f.x, y: f.y + 0.4, z: f.z || 0 }); S.cp = k; S.cpX = f.x; S.cpY = f.y + 0.4; S.cpZ = f.z || 0
   for (let f2 = 0; f2 < 20; f2++) step(W, S, {})
   return S
 }
@@ -30,9 +30,14 @@ function planRoute(S0, goal, maxNodes = 3000) {
     if (ok && (!best || n.S.t < best.S.t)) best = n
   }
   if (!best) return null
-  return pathTo(best).slice(1).map(n => ({ j: n.S.rope ? n.S.rope.i : -1, land: !n.S.rope, y: n.S.p.y, x: n.S.p.x, L: n.S.rope ? n.S.rope.L : 0 }))
+  return pathTo(best).slice(1).map(n => ({ j: n.S.rope ? n.S.rope.i : -1, land: !n.S.rope, y: n.S.p.y, x: n.S.p.x, z: n.S.p.z, L: n.S.rope ? n.S.rope.L : 0 }))
 }
 
+// rel のとおりにぶら下がってこぐ（向き・待ち・コマ）
+function hangTo(S, from, rel) {
+  const r = decodeRel(rel), d = dirOf(r.dir), wf = Math.round(r.wait * 0.9 * 60)
+  for (let f = 0; f < r.f && S.rope; f++) step(W, S, { hook: true, target: from, ...pumpInput(S, d, f, wf) })
+}
 function play(S, route, goal, depth = 0) {
   const replan = () => { if (process.env.V) console.log('  fail at', S.rope ? S.rope.i : 'air', '->', cur && cur.j, 't', S.t.toFixed(1)); if (depth >= 3) return false; const r2 = planRoute(S, goal, 600); if (!r2) return false; replans++; return play(S, r2, goal, depth + 1) }
   let cur = null
@@ -44,11 +49,11 @@ function play(S, route, goal, depth = 0) {
       const ex = expandHang(W, S)
       let list = null
       if (st.land) {
-        const ls = ex.lands.filter(l => Math.abs(l.x - st.x) < 2.5 && Math.abs(l.y - st.y) < 1.5)
+        const ls = ex.lands.filter(l => Math.abs(l.x - st.x) < 2.5 && Math.abs(l.y - st.y) < 1.5 && Math.abs(l.z - st.z) < 2.5)
         if (!ls.length) return replan()
         const l = ls[Math.floor(ls.length / 2)]
-        for (let f = 0; f < l.rel % 10000; f++) step(W, S, { hook: true, target: from, pump: f < Math.floor(l.rel / 10000) * 54 ? 0 : (S.p.vx >= 0 ? 1 : -1) })
-        for (let f = 0; f < 150 && !S.done; f++) step(W, S, { hook: false, pump: 0 })
+        hangTo(S, from, l.rel)
+        for (let f = 0; f < 150 && !S.done; f++) step(W, S, { hook: false })
         continue
       }
       // 長さが近い枝を選ぶ（短く掛ける手は近づいてから押す）
@@ -64,31 +69,31 @@ function play(S, route, goal, depth = 0) {
       }
       if (!pick) return replan()
       const rel = Math.max(0, Math.round(pick.mid) + Math.round((rnd() * 2 - 1) * HUMAN.tol))
-      const wk = Math.floor(rel / 10000), rf = rel % 10000
-      for (let f = 0; f < rf && S.rope; f++) step(W, S, { hook: true, target: from, pump: f < wk * 54 ? 0 : (S.p.vx >= 0 ? 1 : -1) })
-      step(W, S, { hook: false, pump: 0 })
+      hangTo(S, from, rel)
+      step(W, S, { hook: false })
       const delay = Math.round((HUMAN.react + rnd() * 0.12) * 60)
-      for (let f = 0; f < delay; f++) step(W, S, { hook: false, pump: 0 })
+      for (let f = 0; f < delay; f++) step(W, S, { hook: false })
       const gd = pick.near ? pick.d + 0.4 : 99
       let ok = false
       for (let f = 0; f < 150; f++) {
         const q = anchorPos(W, S, W.anchors[st.j], { x: 0, y: 0 })
-        step(W, S, { hook: Math.hypot(q.x - S.p.x, q.y - S.p.y) <= gd, target: st.j, pump: 0 })
+        step(W, S, { hook: Math.hypot(q.x - S.p.x, q.y - S.p.y, q.z - S.p.z) <= gd, target: st.j })
         if (S.rope && S.rope.i === st.j) { ok = true; break }
       }
       if (!ok) return replan()
     } else {
       const ex = expandStand(W, S)
       const e = ex.get(st.j); if (!e) return replan()
-      for (let f = 0; f < e[0].f; f++) step(W, S, { hook: false, pump: e[0].walk })
-      step(W, S, { hook: true, target: st.j, pump: e[0].walk }); step(W, S, { hook: true, target: st.j, pump: e[0].walk })
+      const wv = { mx: e[0].walk[0], mz: e[0].walk[1] }
+      for (let f = 0; f < e[0].f; f++) step(W, S, { hook: false, ...wv })
+      step(W, S, { hook: true, target: st.j, ...wv }); step(W, S, { hook: true, target: st.j, ...wv })
       if (!S.rope) return false
     }
     if (S.ev.some(e => e.t === 'respawn')) return false
     S.ev.length = 0
   }
   // 頂上: 最後の輪から棚に降りる
-  for (let f = 0; f < 200 && !S.done && goal.top; f++) step(W, S, { hook: false, pump: 0 })
+  for (let f = 0; f < 200 && !S.done && goal.top; f++) step(W, S, { hook: false })
   return reached(S, goal)
 }
 

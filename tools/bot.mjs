@@ -6,7 +6,7 @@
 // greedy  : 道を読まずに、届く中で一番高い点に掛ける
 import { makeCourse } from '../js/course.js'
 import { buildWorld, newState, step, cloneState, canGrab, anchorPos, PH, grabbable } from '../js/physics.js'
-import { exploreAll, expandHang, expandStand, robustWindows, HUMAN } from '../js/explore.js'
+import { exploreAll, expandHang, expandStand, robustWindows, HUMAN, decodeRel, dirOf, pumpInput } from '../js/explore.js'
 
 const mode = process.argv[2] || 'plan'
 const DEBUG = process.argv.includes('-d')
@@ -106,8 +106,8 @@ while (!S.done && S.frame < LIMIT) {
     } else { // どこにも行けない: 手を離して落ちる
       run({ hook: false, pump: 0 }, 60); continue
     }
-    const wk = Math.floor(rel / 10000), rf = rel % 10000, wf = wk * 54
-    for (let f = 0; f < rf && S.rope && !S.done; f++) run({ hook: true, target: from, pump: f < wf ? 0 : (S.p.vx >= 0 ? 1 : -1) }, 1)
+    { const r = decodeRel(rel), d = dirOf(r.dir), wf = Math.round(r.wait * 54)
+      for (let f = 0; f < r.f && S.rope && !S.done; f++) run({ hook: true, target: from, ...pumpInput(S, d, f, wf) }, 1) }
     run({ hook: false, pump: 0 }, 1)
     if (target < 0) { run({ hook: false, pump: 0 }, 120); continue }
     // 離してから人の反応ぶん待ってから、狙った点を押しっぱなしにする
@@ -117,8 +117,8 @@ while (!S.done && S.frame < LIMIT) {
     // 短いワイヤーで掛ける手は、十分近づいてから押す
     const gd = best && best.grabD || 99
     for (let f = 0; f < 150 && !S.done; f++) {
-      const q = anchorPos(W, S, W.anchors[target], { x: 0, y: 0 })
-      const press = Math.hypot(q.x - S.p.x, q.y - S.p.y) <= gd
+      const q = anchorPos(W, S, W.anchors[target], { x: 0, y: 0, z: 0 })
+      const press = Math.hypot(q.x - S.p.x, q.y - S.p.y, q.z - S.p.z) <= gd
       run({ hook: press, target, pump: 0 }, 1); if (S.rope && S.rope.i === target) { ok = true; break }
     }
     if (ok) { hops++; recent.push(target); if (recent.length > 8) recent.shift() }
@@ -139,9 +139,9 @@ while (!S.done && S.frame < LIMIT) {
       if (!best || sc > best.sc) best = { j, sc, e: list[0] }
     }
     if (DEBUG) console.log('stand', S.t.toFixed(1), S.p.x.toFixed(1), S.p.y.toFixed(1), 'opts', [...ex.keys()].join(','), 'best', best && best.j, best && best.sc)
-    if (!best) { run({ hook: false, pump: rnd() < 0.5 ? -1 : 1 }, 90); continue }   // どこにも届かない棚: 歩いて降りる
-    run({ hook: false, pump: best.e.walk }, best.e.f)
-    run({ hook: true, target: best.j, pump: best.e.walk }, 2)
+    if (!best) { run({ hook: false, mx: rnd() < 0.5 ? -1 : 1, mz: 0 }, 90); continue }   // どこにも届かない棚: 歩いて降りる
+    run({ hook: false, mx: best.e.walk[0], mz: best.e.walk[1] }, best.e.f)
+    run({ hook: true, target: best.j, mx: best.e.walk[0], mz: best.e.walk[1] }, 2)
     if (!S.rope) run({ hook: false, pump: 0 }, 10)
   }
 }

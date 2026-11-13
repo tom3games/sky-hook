@@ -1,8 +1,8 @@
 // 見た目。course の一覧（当たりと同じデータ）から塔・棚・掛け点・仕掛けを作る。
 // 遊ぶ面は半径 TOWER_R の円柱。2次元の (x, y, z) は「周に沿った距離・高さ・外向きのずれ」
 import * as THREE from 'three'
-import { TOWER_R } from './course.js?v=4'
-import { anchorPos, hazardGeo, gustAt, floodLevel, bellK, solidAt, PH } from './physics.js?v=4'
+import { TOWER_R } from './course.js?v=5'
+import { anchorPos, hazardGeo, gustAt, floodLevel, bellK, solidAt, PH, boxOf } from './physics.js?v=5'
 
 export const PAL = { sand: 0xdda675, sandM: 0xb0825d, shadow: 0x7e5c41, deep: 0x57391e, haze: 0x909eba, cloud: 0xd0cfd8, sky: 0x557198 }
 const R = TOWER_R
@@ -172,9 +172,9 @@ export class View {
     const balc = []
     for (let i = 0; i < (this.lowEnd ? 40 : 80); i++) balc.push([rnd() * 2 * Math.PI * R, -20 + rnd() * (yTop - 30), 2.4 + rnd() * 2.4])
     const parts = [
-      [new THREE.BoxGeometry(1, 0.32, 1.7).translate(0, 0, 0.85), MAT.trim, 1],
-      [new THREE.BoxGeometry(1, 0.9, 0.16).translate(0, 0.6, 1.62), MAT.stone, 1],
-      [new THREE.BoxGeometry(1, 0.12, 0.26).translate(0, 1.08, 1.62), MAT.trim, 1],
+      [new THREE.BoxGeometry(1, 0.32, 0.65).translate(0, 0, 0.33), MAT.trim, 1],
+      [new THREE.BoxGeometry(1, 0.9, 0.14).translate(0, 0.6, 0.6), MAT.stone, 1],
+      [new THREE.BoxGeometry(1, 0.12, 0.22).translate(0, 1.08, 0.6), MAT.trim, 1],
     ]
     for (const [geo, mat] of parts) {
       const im = new THREE.InstancedMesh(geo, mat, balc.length)
@@ -183,7 +183,7 @@ export class View {
       im.castShadow = true; im.receiveShadow = true; this.root.add(im)
     }
     // 露台の下の持ち送り（2本ずつ）
-    { const cg = new THREE.BoxGeometry(0.35, 0.9, 1.3).translate(0, -0.6, 0.65)
+    { const cg = new THREE.BoxGeometry(0.35, 0.9, 0.6).translate(0, -0.6, 0.3)
       const im = new THREE.InstancedMesh(cg, MAT.stone, balc.length * 2)
       const mm = new THREE.Matrix4(), qq = new THREE.Quaternion(), pp = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1)
       balc.forEach(([x, y, w], i) => { for (const sgn of [-1, 1]) { const xx = x + sgn * (w / 2 - 0.4), f = xx / R; pp.set(Math.sin(f) * WALL_R, y, Math.cos(f) * WALL_R); qq.setFromEuler(new THREE.Euler(0, f, 0)); mm.compose(pp, qq, one); im.setMatrixAt(i * 2 + (sgn > 0 ? 1 : 0), mm) } })
@@ -229,7 +229,7 @@ export class View {
   buildSolids() {
     for (const s of this.W.solids) {
       const mat = s.mat === 'stone' ? MAT.moss : (MAT[s.mat] || MAT.stone)
-      const z0 = WALL_R - R - 0.4, z1 = s.perch ? 0.7 : s.mat === 'wood' ? 0.8 : 0.9
+      const bx = boxOf(s), z0 = Math.min(bx.z0, WALL_R - R - 0.4), z1 = bx.z1
       const g = bentBox(s.x, s.y, s.w, s.h, s.a || 0, z0, z1)
       const m = new THREE.Mesh(g, mat)
       m.castShadow = true; m.receiveShadow = true
@@ -254,13 +254,15 @@ export class View {
       const g = new THREE.Group()
       const kind = a.kind
       // 台座（壁から突き出た石の持ち送り）
-      const bz0 = WALL_R - R - 0.2, bz1 = -0.35
+      const az = a.z || 0
+      const bz0 = WALL_R - R - 0.2, bz1 = az - 0.35
       // 台座の形は3種（石の持ち送り・木の梁・鉄の腕）。崩れる点はいつもひびの入った石
-      const style = kind === 'crumble' ? 0 : ((a.i * 7 + 3) % 10 < 6 ? 0 : (a.i * 7 + 3) % 10 < 9 ? 1 : 2)
+      // 外へ遠い輪は長い木の梁の先（絵 C の梁）
+      const style = kind === 'crumble' ? 0 : az > 1.2 ? 1 : ((a.i * 7 + 3) % 10 < 6 ? 0 : (a.i * 7 + 3) % 10 < 9 ? 1 : 2)
       let base
       if (style === 0) base = new THREE.Mesh(bentBox(a.x, a.y + 0.2, 1.3, 1.05, 0, bz0, bz1), kind === 'crumble' ? MAT.crack : MAT.stone)
-      else if (style === 1) base = new THREE.Mesh(bentBox(a.x, a.y + 0.62, 0.42, 0.42, 0, bz0, 0.2), MAT.wood)
-      else base = new THREE.Mesh(bentBox(a.x, a.y + 0.45, 0.16, 0.22, 0, bz0, 0.05), MAT.iron)
+      else if (style === 1) base = new THREE.Mesh(bentBox(a.x, a.y + 0.62, 0.42, 0.42, 0, bz0, az + 0.2), MAT.wood)
+      else base = new THREE.Mesh(bentBox(a.x, a.y + 0.45, 0.16, 0.22, 0, bz0, az + 0.05), MAT.iron)
       base.castShadow = true; base.receiveShadow = true
       if (!a.move) this.root.add(base)
       const ring = new THREE.Mesh(ringG, kind === 'rusty' ? MAT.rust : MAT.ironDark)
@@ -277,7 +279,7 @@ export class View {
         if (m.k === 'line') {
           const p0 = { x: a.x - m.dx, y: a.y - m.dy }, p1 = { x: a.x + m.dx, y: a.y + m.dy }
           const len = Math.hypot(p1.x - p0.x, p1.y - p0.y) + 1.4
-          const rail = new THREE.Mesh(bentBox(a.x, a.y + 0.55, len, 0.22, Math.atan2(m.dy, m.dx), bz0, -0.5), MAT.iron)
+          const rail = new THREE.Mesh(bentBox(a.x, a.y + 0.55, len, 0.22, Math.atan2(m.dy || 0, m.dx || 0), bz0, az - 0.5), MAT.iron)
           rail.castShadow = true; this.root.add(rail)
         }
       }
@@ -298,12 +300,13 @@ export class View {
         for (let k = 0; k < h.n; k++) {
           const arm = new THREE.Group()
           const spar = new THREE.Mesh(new THREE.BoxGeometry(h.len, 0.22, 0.22), MAT.wood); spar.position.x = h.len / 2; arm.add(spar)
-          const sail = new THREE.Mesh(new THREE.BoxGeometry(h.len * 0.78, h.hw * 2 + 0.5, 0.08), MAT.wood); sail.position.set(h.len * 0.58, h.hw + 0.2, 0.08); arm.add(sail)
+          const sail = new THREE.Mesh(new THREE.BoxGeometry(h.len * 0.78, h.hw * 2 + 0.5, (h.dz || 0.9) * 2), MAT.wood); sail.position.set(h.len * 0.58, h.hw + 0.2, 0); arm.add(sail)
           arm.rotation.z = k * Math.PI * 2 / h.n
           spar.castShadow = sail.castShadow = true
           g.add(arm)
         }
-        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 0.8, 16), MAT.iron); hub.rotation.x = Math.PI / 2; g.add(hub)
+        const axl = (h.z || 0) - (WALL_R - R) + 0.5
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, axl, 16), MAT.iron); hub.rotation.x = Math.PI / 2; hub.position.z = -axl / 2 + (h.dz || 0.9); g.add(hub)
       } else if (h.k === 'ball') {
         const ball = new THREE.Mesh(new THREE.SphereGeometry(h.r, 24, 16), MAT.iron); ball.castShadow = true; ball.name = 'ball'
         g.add(ball)
@@ -329,7 +332,7 @@ export class View {
       const cm = MAT.cloth.clone(); cm.map = bannerTex(); cm.alphaTest = 0.5; cm.color.set(0xffffff)
       const cloth = new THREE.Mesh(cg, cm); cloth.position.y = 2.75; cloth.castShadow = true; g.add(cloth)
       cloth.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: cm.map, alphaTest: 0.5 })
-      to3(f.x - 1.05, f.y, 0.1, g.position); g.rotation.y = (f.x - 1.05) / R
+      to3(f.x - 1.05, f.y, (f.z || 0) + 0.1, g.position); g.rotation.y = (f.x - 1.05) / R
       this.root.add(g)
       this.flagMeshes.push({ f, g, cloth, base: cg.attributes.position.array.slice() })
     }
@@ -381,20 +384,20 @@ export class View {
     const colG = new THREE.CylinderGeometry(0.55, 0.62, 1, 14)
     const capG = new THREE.BoxGeometry(1.6, 0.4, 1.6)
     for (const [x, h] of [[-14, 6.5], [-10.5, 3.2], [-6.5, 7.5], [-3, 2.2]]) {
-      const c = new THREE.Mesh(colG, MAT.trim); to3(x, h / 2, -1.6, c.position); c.scale.y = h; c.rotation.y = x / R; c.castShadow = c.receiveShadow = true; this.root.add(c)
-      const b = new THREE.Mesh(capG, MAT.stone); to3(x, 0.2, -1.6, b.position); b.rotation.y = x / R; b.castShadow = b.receiveShadow = true; this.root.add(b)
-      if (h > 6) { const cp = new THREE.Mesh(capG, MAT.trim); to3(x, h, -1.6, cp.position); cp.rotation.y = x / R; cp.castShadow = true; this.root.add(cp) }
+      const c = new THREE.Mesh(colG, MAT.trim); to3(x, h / 2, -2.2, c.position); c.scale.y = h; c.rotation.y = x / R; c.castShadow = c.receiveShadow = true; this.root.add(c)
+      const b = new THREE.Mesh(capG, MAT.stone); to3(x, 0.2, -2.2, b.position); b.rotation.y = x / R; b.castShadow = b.receiveShadow = true; this.root.add(b)
+      if (h > 6) { const cp = new THREE.Mesh(capG, MAT.trim); to3(x, h, -2.2, cp.position); cp.rotation.y = x / R; cp.castShadow = true; this.root.add(cp) }
     }
     // 頂上の門: 2本の柱と梁、その上に大きな旗
     const T = C.top
     const gx = T.x, gy = T.y
     for (const dx of [-5, 5]) {
-      const c = new THREE.Mesh(colG, MAT.trim); to3(gx + dx, gy + 4, -1.4, c.position); c.scale.set(1.3, 8, 1.3); c.rotation.y = (gx + dx) / R; c.castShadow = c.receiveShadow = true; this.root.add(c)
+      const c = new THREE.Mesh(colG, MAT.trim); to3(gx + dx, gy + 4, -2.2, c.position); c.scale.set(1.3, 8, 1.3); c.rotation.y = (gx + dx) / R; c.castShadow = c.receiveShadow = true; this.root.add(c)
     }
-    const beam = new THREE.Mesh(bentBox(gx, gy + 8.6, 13, 1.3, 0, WALL_R - R, -0.6), MAT.trim); beam.castShadow = true; this.root.add(beam)
+    const beam = new THREE.Mesh(bentBox(gx, gy + 8.6, 13, 1.3, 0, WALL_R - R, -1.7), MAT.trim); beam.castShadow = true; this.root.add(beam)
     const cg = new THREE.PlaneGeometry(4, 6, 10, 12); cg.translate(0, -3, 0)
     const cm = MAT.cloth.clone(); cm.map = bannerTex(); cm.alphaTest = 0.5; cm.color.set(0xffffff)
-    const ban = new THREE.Mesh(cg, cm); to3(gx, gy + 8, -0.5, ban.position); ban.rotation.y = gx / R; ban.castShadow = true; this.root.add(ban)
+    const ban = new THREE.Mesh(cg, cm); to3(gx, gy + 8, -1.9, ban.position); ban.rotation.y = gx / R; ban.castShadow = true; this.root.add(ban)
     this.flagMeshes.push({ f: { x: gx, y: gy }, g: ban, cloth: ban, base: cg.attributes.position.array.slice(), big: true })
   }
 
@@ -432,7 +435,7 @@ export class View {
       anchorPos(W, S, a, q)
       const gone = (a.kind === 'rusty' && st.used) || st.back > 0
       const fallT = st.fallT
-      to3(q.x, q.y, 0, am.g.position)
+      to3(q.x, q.y, q.z, am.g.position)
       am.g.rotation.set(0, q.x / R, 0)
       // 崩れる点はぐらつく
       if (a.kind === 'crumble' && st.crT >= 0 && fallT === 0) { const k = st.crT * 30; am.g.position.y += Math.sin(k) * 0.04; am.base.position.y = Math.sin(k * 1.3) * 0.05 }
@@ -453,9 +456,9 @@ export class View {
     // 仕掛け
     for (const o of this.hz) {
       const h = o.h, G = hazardGeo(h, t)
-      if (h.k === 'blade') { to3(h.x, h.y, 0.3, o.g.position); o.g.rotation.set(0, h.x / R, G.ang) }
+      if (h.k === 'blade') { to3(h.x, h.y, h.z, o.g.position); o.g.rotation.set(0, h.x / R, G.ang) }
       else if (h.k === 'ball') {
-        to3(h.x, h.y, 0, o.g.position); o.g.rotation.set(0, h.x / R, G.th)
+        to3(h.x, h.y, h.z, o.g.position); o.g.rotation.set(0, h.x / R, G.th)
         const ball = o.g.getObjectByName('ball'); ball.position.set(0, -h.L, 0)
       } else if (h.k === 'piston') {
         const ram = o.g.getObjectByName('ram')
@@ -522,7 +525,7 @@ export class View {
     if (S.rope && ui.hand) {
       const a = W.anchors[S.rope.i]
       anchorPos(W, S, a, q)
-      const p0 = ui.hand, p1 = to3(q.x, q.y, 0)
+      const p0 = ui.hand, p1 = to3(q.x, q.y, q.z)
       const mid = p0.clone().add(p1).multiplyScalar(0.5)
       const len = p0.distanceTo(p1)
       this.rope.visible = true
@@ -534,10 +537,10 @@ export class View {
     const tg = ui.target
     if (tg != null && tg >= 0 && !(S.rope && S.rope.i === tg)) {
       anchorPos(W, S, W.anchors[tg], q)
-      const p1 = to3(q.x, q.y, 0.3)
+      const p1 = to3(q.x, q.y, q.z + 0.3)
       this.aimLine.visible = true
       const pa = this.aimLine.geometry.attributes.position
-      const p0 = to3(S.p.x, S.p.y + 0.4, 0.3)
+      const p0 = to3(S.p.x, S.p.y + 0.4, S.p.z + 0.3)
       pa.setXYZ(0, p0.x, p0.y, p0.z); pa.setXYZ(1, p1.x, p1.y, p1.z); pa.needsUpdate = true
       this.aimLine.computeLineDistances()
       this.aimMark.visible = true; this.aimMark.position.copy(p1)
