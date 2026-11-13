@@ -6,10 +6,10 @@ import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js
 import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js'
 import { ShaderPass } from '../vendor/jsm/postprocessing/ShaderPass.js'
 import { GTAOPass } from '../vendor/jsm/postprocessing/GTAOPass.js'
-import { makeCourse, TOWER_R } from './course.js?v=5'
-import { PH, buildWorld, newState, step, grabbable, anchorPos, swingInfo, respawn, solidAt } from './physics.js?v=5'
-import { View, to3, frame, setAniso, WALL_R } from './view.js?v=5'
-import { Climber } from './climber.js?v=5'
+import { makeCourse, TOWER_R } from './course.js?v=6'
+import { PH, buildWorld, newState, step, grabbable, anchorPos, swingInfo, respawn, solidAt } from './physics.js?v=6'
+import { View, to3, frame, setAniso, WALL_R } from './view.js?v=6'
+import { Climber } from './climber.js?v=6'
 
 window.__jsUp = true
 const $ = id => document.getElementById(id)

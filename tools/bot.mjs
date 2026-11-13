@@ -6,7 +6,7 @@
 // greedy  : 道を読まずに、届く中で一番高い点に掛ける
 import { makeCourse } from '../js/course.js'
 import { buildWorld, newState, step, cloneState, canGrab, anchorPos, PH, grabbable } from '../js/physics.js'
-import { exploreAll, expandHang, expandStand, robustWindows, HUMAN, decodeRel, dirOf, pumpInput } from '../js/explore.js'
+import { exploreAll, expandHang, expandStand, robustWindows, HUMAN, decodeRel, dirOf, pumpInput, brakeInput } from '../js/explore.js'
 
 const mode = process.argv[2] || 'plan'
 const DEBUG = process.argv.includes('-d')
@@ -107,7 +107,7 @@ while (!S.done && S.frame < LIMIT) {
       run({ hook: false, pump: 0 }, 60); continue
     }
     { const r = decodeRel(rel), d = dirOf(r.dir), wf = Math.round(r.wait * 54)
-      for (let f = 0; f < r.f && S.rope && !S.done; f++) run({ hook: true, target: from, ...pumpInput(S, d, f, wf) }, 1) }
+      for (let f = 0; f < r.f && S.rope && !S.done; f++) run({ hook: true, target: from, ...(r.wait === 3 && f < wf ? brakeInput(S) : pumpInput(S, d, f, wf)) }, 1) }
     run({ hook: false, pump: 0 }, 1)
     if (target < 0) { run({ hook: false, pump: 0 }, 120); continue }
     // 離してから人の反応ぶん待ってから、狙った点を押しっぱなしにする

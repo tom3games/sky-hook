@@ -5,7 +5,7 @@
 //    離してから 0.22〜0.34 秒たってから次の輪を押す。落ちたら旗からやり直す（最大 4 回）
 import { makeCourse } from '../js/course.js'
 import { buildWorld, newState, step, anchorPos, cloneState } from '../js/physics.js'
-import { exploreAll, expandHang, expandStand, robustWindows, HUMAN, pathTo, decodeRel, dirOf, pumpInput } from '../js/explore.js'
+import { exploreAll, expandHang, expandStand, robustWindows, HUMAN, pathTo, decodeRel, dirOf, pumpInput, brakeInput } from '../js/explore.js'
 const W = buildWorld(makeCourse())
 const seed = +(process.argv[2] || 1)
 const secs = process.argv.slice(3).map(Number)
@@ -36,7 +36,7 @@ function planRoute(S0, goal, maxNodes = 3000) {
 // rel のとおりにぶら下がってこぐ（向き・待ち・コマ）
 function hangTo(S, from, rel) {
   const r = decodeRel(rel), d = dirOf(r.dir), wf = Math.round(r.wait * 0.9 * 60)
-  for (let f = 0; f < r.f && S.rope; f++) step(W, S, { hook: true, target: from, ...pumpInput(S, d, f, wf) })
+  for (let f = 0; f < r.f && S.rope; f++) step(W, S, { hook: true, target: from, ...(r.wait === 3 && f < wf ? brakeInput(S) : pumpInput(S, d, f, wf)) })
 }
 function play(S, route, goal, depth = 0) {
   const replan = () => { if (process.env.V) console.log('  fail at', S.rope ? S.rope.i : 'air', '->', cur && cur.j, 't', S.t.toFixed(1)); if (depth >= 3) return false; const r2 = planRoute(S, goal, 600); if (!r2) return false; replans++; return play(S, r2, goal, depth + 1) }
@@ -108,10 +108,10 @@ for (const k of list) {
   let ok = false, tries = 0, simT = 0
   while (!ok && tries < 4) {
     tries++
-    const S = cloneState(S0); S.t = 0
+    const S = cloneState(S0)
     S.ev = []
     ok = play(S, route, goal)
-    simT += S.t
+    simT += S.t - S0.t
   }
   total += simT
   if (!ok) allOk = false

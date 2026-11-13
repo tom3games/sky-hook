@@ -6,7 +6,7 @@ import { exploreAll, pathTo } from '../js/explore.js'
 const W = buildWorld(makeCourse())
 const [A, L, M] = [+process.argv[2], +(process.argv[3] || 4), +(process.argv[4] || 40)]
 const S = newState(W); S.cpY = -1e9
-const a = W.anchors[A]; S.p.x = a.x + 0.01; S.p.y = a.y - L
+const a = W.anchors[A]; S.p.x = a.x + 0.01; S.p.y = a.y - L; S.p.z = a.z || 0
 step(W, S, { hook: true, target: A, pump: 0 })
 const R = exploreAll(W, { S0: S, maxNodes: M })
 console.log('from', A, 'L', L, 'reached', [...R.reached].sort((x, y) => x - y).join(','))

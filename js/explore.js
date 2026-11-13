@@ -14,12 +14,18 @@ export const NDIR = 12
 export function dirOf(k) { if (k >= NDIR) return [[1, 0], [-1, 0], [0, 1], [0, -1]][k - NDIR]; const t = k / NDIR * Math.PI * 2; return [Math.cos(t), Math.sin(t)] }
 export function decodeRel(rel) { const hk = Math.floor(rel / 10000); return { dir: Math.floor(hk / 4), wait: hk % 4, f: rel % 10000 } }
 // こぐ入力: 決めた向き d の線の上で、今の速さの向きへ押す（前後にこぐ）
-export function pumpInput(S, d, f, waitF) {
+export function pumpInput(S, d, f, waitF, wait) {
   if (f < waitF) return { mx: 0, mz: 0 }
   const s = S.p.vx * d[0] + S.p.vz * d[1] >= 0 ? 1 : -1
   return { mx: d[0] * s, mz: d[1] * s }
 }
 
+// 振れを止める入力（今の速さの水平の向きと逆へ）
+export function brakeInput(S) {
+  const vh = Math.hypot(S.p.vx, S.p.vz)
+  if (vh < 0.3) return { mx: 0, mz: 0 }
+  return { mx: -S.p.vx / vh, mz: -S.p.vz / vh }
+}
 function headings(W, S) {
   const p = S.p, set = new Set()
   for (const a of nearBand(W.aBands, W.band, p.y - 6, p.y + 14)) {
@@ -38,7 +44,8 @@ export function expandHang(W, S0, opt = {}) {
   const res = new Map(), lands = []
   const nRel = Math.round(H.maxHang * 60)
   const hz = nearBand(W.hBands, W.band, S0.p.y - 12, S0.p.y + 12).some(h => Math.abs(h.x - S0.p.x) < 14)
-  const waits = hz ? [0, 1, 2] : [0]
+  // 3 = 一度振れを止めて（逆へ押して）から、その向きでこぎ直す。人は止まって向きを選び直せる
+  const waits = hz ? [0, 1, 2, 3] : [0, 3]
   for (const dk of opt.dirs || headings(W, S0)) {
     const d = dirOf(dk)
     for (const k of waits) {
@@ -52,7 +59,7 @@ export function expandHang(W, S0, opt = {}) {
           for (const [j, g] of hit.grabs) { if (!res.has(j)) res.set(j, []); res.get(j).push({ rel: base + f, ...g }) }
           if (hit.land) lands.push({ rel: base + f, ...hit.land })
         }
-        step(W, S, { hook: true, target: from, ...pumpInput(S, d, f, wf) })
+        step(W, S, { hook: true, target: from, ...(k === 3 && f < wf ? brakeInput(S) : pumpInput(S, d, f, wf)) })
         if (dead(S)) break
       }
     }
@@ -156,7 +163,10 @@ export function exploreAll(W, opt = {}) {
     if (n.S.rope) {
       reached.add(n.S.rope.i)
       const ex = expandHang(W, n.S, H)
-      for (const [j, list] of ex.grabs) {
+      // こぎ続ける手を先に、止めてからこぎ直す手を後に（同じ長さなら先の方を残す）
+      for (const brake of [false, true]) for (const [j, all] of ex.grabs) {
+        const list = all.filter(x => (decodeRel(x.rel).wait === 3) === brake)
+        if (!list.length) continue
         const wins = robustWindows(list, H.tol, H.relStep)
         if (!wins.length) continue
         wins.sort((a, b) => (b[1] - b[0]) - (a[1] - a[0]))
