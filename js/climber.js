@@ -1,7 +1,7 @@
 // 登る人。Quaternius の人物（CC0）を骨の IK で手続きに動かす（アニメのクリップは使わない）
 import * as THREE from 'three'
 import { GLTFLoader } from '../vendor/jsm/loaders/GLTFLoader.js'
-import { to3, frame } from './view.js?v=3'
+import { to3, frame } from './view.js?v=4'
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z)
 const _a = V(), _b = V(), _c = V()
