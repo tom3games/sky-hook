@@ -1,8 +1,8 @@
 // 見た目。course の一覧（当たりと同じデータ）から塔・棚・掛け点・仕掛けを作る。
 // 遊ぶ面は半径 TOWER_R の円柱。2次元の (x, y, z) は「周に沿った距離・高さ・外向きのずれ」
 import * as THREE from 'three'
-import { TOWER_R } from './course.js?v=2'
-import { anchorPos, hazardGeo, gustAt, floodLevel, bellK, solidAt, PH } from './physics.js?v=2'
+import { TOWER_R } from './course.js?v=3'
+import { anchorPos, hazardGeo, gustAt, floodLevel, bellK, solidAt, PH } from './physics.js?v=3'
 
 export const PAL = { sand: 0xdda675, sandM: 0xb0825d, shadow: 0x7e5c41, deep: 0x57391e, haze: 0x909eba, cloud: 0xd0cfd8, sky: 0x557198 }
 const R = TOWER_R

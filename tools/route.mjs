@@ -34,8 +34,10 @@ function planRoute(S0, goal, maxNodes = 3000) {
 }
 
 function play(S, route, goal, depth = 0) {
-  const replan = () => { if (depth >= 3) return false; const r2 = planRoute(S, goal, 600); if (!r2) return false; replans++; return play(S, r2, goal, depth + 1) }
+  const replan = () => { if (process.env.V) console.log('  fail at', S.rope ? S.rope.i : 'air', '->', cur && cur.j, 't', S.t.toFixed(1)); if (depth >= 3) return false; const r2 = planRoute(S, goal, 600); if (!r2) return false; replans++; return play(S, r2, goal, depth + 1) }
+  let cur = null
   for (const st of route) {
+    cur = st
     if (reached(S, goal)) return true
     if (S.rope) {
       const from = S.rope.i

@@ -6,10 +6,10 @@ import { UnrealBloomPass } from '../vendor/jsm/postprocessing/UnrealBloomPass.js
 import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js'
 import { ShaderPass } from '../vendor/jsm/postprocessing/ShaderPass.js'
 import { GTAOPass } from '../vendor/jsm/postprocessing/GTAOPass.js'
-import { makeCourse, TOWER_R } from './course.js?v=2'
-import { PH, buildWorld, newState, step, grabbable, anchorPos, swingInfo, respawn } from './physics.js?v=2'
-import { View, to3, frame, setAniso, WALL_R } from './view.js?v=2'
-import { Climber } from './climber.js?v=2'
+import { makeCourse, TOWER_R } from './course.js?v=3'
+import { PH, buildWorld, newState, step, grabbable, anchorPos, swingInfo, respawn } from './physics.js?v=3'
+import { View, to3, frame, setAniso, WALL_R } from './view.js?v=3'
+import { Climber } from './climber.js?v=3'
 
 window.__jsUp = true
 const $ = id => document.getElementById(id)
@@ -226,7 +226,12 @@ function releaseHookIfNone() {
 const cv = renderer.domElement
 const SENS_M = 0.0024, SENS_T = 0.0062
 function turn(dx, dy, k) { look.yaw = Math.max(-1.25, Math.min(1.25, look.yaw + dx * k)); look.pitch = Math.max(-0.7, Math.min(1.25, look.pitch - dy * k)); look.t = performance.now() }
-document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === cv })
+document.addEventListener('pointerlockchange', () => {
+  const was = locked; locked = document.pointerLockElement === cv
+  // Esc で固定が外れたら一時停止（ボタンを押せるように）
+  if (was && !locked && mode === 'play' && !paused) setPause(true)
+})
+function unlock() { try { if (document.pointerLockElement) document.exitPointerLock() } catch (e) {} }
 cv.addEventListener('pointerdown', e => {
   startAudio()
   if (mode !== 'play' || paused) return
@@ -378,7 +383,7 @@ function tutorial() {
   if (g0 != null) { const q = window.hook.anchorXY(g0); fg.style.left = q.x + 'px'; fg.style.top = q.y + 'px'; fg.classList.add('on') } else fg.classList.remove('on')
 }
 
-function setPause(v) { paused = v; $('pause').hidden = !v; if (v) { pointers.clear(); inp.hook = false; inp.target = -1 } }
+function setPause(v) { paused = v; $('pause').hidden = !v; if (v) { pointers.clear(); inp.hook = false; inp.target = -1; unlock() } }
 function toFlag() { respawn(W, S, false); onRespawn(); setPause(false) }
 function onRespawn() { pointers.clear(); inp.hook = false; inp.target = -1; flash(); faceFlagRing() }
 // 旗に戻った時は、旗の輪の方を向く（照準は合わせない。向きだけ）
@@ -399,7 +404,7 @@ function startGame(fromCp) {
   startAudio()
 }
 function finish() {
-  mode = 'result'
+  mode = 'result'; unlock()
   const tm = S.doneT, b = getBest()
   if (!b || tm < b) try { localStorage.setItem('hook-best', String(tm)) } catch (e) {}
   try { localStorage.removeItem('hook-cp') } catch (e) {}
@@ -424,7 +429,7 @@ $('pCp').onclick = () => toFlag()
 $('pMenu').onclick = () => { setPause(false); toTitle() }
 $('rRetry').onclick = () => startGame(false)
 $('rMenu').onclick = () => toTitle()
-function toTitle() { mode = 'title'; show('title'); $('hud').hidden = true; $('touch').hidden = true; const pr = loadProgress(); $('contBtn').hidden = !(pr && pr.cp >= 0); S = newState(W); refreshBest() }
+function toTitle() { mode = 'title'; unlock(); show('title'); $('hud').hidden = true; $('touch').hidden = true; const pr = loadProgress(); $('contBtn').hidden = !(pr && pr.cp >= 0); S = newState(W); refreshBest() }
 
 // ------------------------------------------------------------ 出来事 → 音と演出
 let lastSec = ''
